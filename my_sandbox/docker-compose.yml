@@ -1,0 +1,60 @@
+services:
+  # 1. 網頁伺服器（特別加上解除 403 外部訪問限制命令）
+  app:
+    image: php:8.3-apache
+    container_name: hismp-sandbox-app
+    restart: unless-stopped
+    ports:
+      - "8001:80"
+    volumes:
+      - ./:/var/www/html
+    environment:
+      - APACHE_DOCUMENT_ROOT=/var/www/html/public
+    entrypoint:
+      - bash
+      - -c
+      - |
+        sed -ri -e 's!/var/www/html!$${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+        sed -ri -e 's!/var/www/html!$${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
+        echo '<Directory /var/www/html/public>' >> /etc/apache2/apache2.conf
+        echo '    Options Indexes FollowSymLinks' >> /etc/apache2/apache2.conf
+        echo '    AllowOverride All' >> /etc/apache2/apache2.conf
+        echo '    Require all granted' >> /etc/apache2/apache2.conf
+        echo '</Directory>' >> /etc/apache2/apache2.conf
+        a2enmod rewrite
+        docker-php-entrypoint apache2-foreground
+    depends_on:
+      - db
+
+  # 2. MySQL 8.0 獨立資料庫
+  db:
+    image: mysql:8.0
+    container_name: hismp-sandbox-db
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_DATABASE: hismp_db
+      MYSQL_ROOT_PASSWORD: secret_root_pass
+      MYSQL_USER: hismp_user
+      MYSQL_PASSWORD: secret_user_pass
+    volumes:
+      - hismp-db-data:/var/lib/mysql
+
+  # 3. 獨立的資料庫網頁管理工具
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: hismp-sandbox-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      - PMA_HOST=db
+      - PMA_USER=root
+      - PMA_PASSWORD=secret_root_pass
+    depends_on:
+      - db
+
+volumes:
+  hismp-db-data:
+    driver: local
