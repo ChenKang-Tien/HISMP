@@ -1,19 +1,13 @@
 <template>
-    <div
-        id="nursing-record-bar"
-        style="
-            background: white;
-            border-top: 2px solid #99f6e4;
-            flex-shrink: 0;
-            max-height: 280px;
-            overflow: hidden;
-        "
-    >
+    <!-- 👩‍⚕️ 還原 HISMP V24/V27 頂級護理綠標頭條 (#f0fdfa) -->
+    <div class="nursing-bar-outer" style="border-top: 2px solid #99f6e4">
+        <!-- 核心按鈕與狀態控制列 -->
         <div
+            class="nursing-bar-hdr"
             style="
-                padding: 5px 10px;
+                padding: 6px 12px;
                 background-color: #f0fdfa;
-                border-bottom: 1px solid #99f6e4;
+                border-bottom: 1px solid #e2e8f0;
                 font-size: 11px;
                 font-weight: 700;
                 color: #0f766e;
@@ -21,125 +15,161 @@
                 align-items: center;
                 justify-content: space-between;
                 flex-wrap: wrap;
-                gap: 4px;
+                gap: 6px;
             "
         >
-            <span
-                ><i class="ti ti-notes" style="margin-right: 4px"></i
-                >護理記錄</span
-            >
+            <span style="display: flex; align-items: center; gap: 4px">
+                <i class="ti ti-notes"></i> 今日當班護理記錄時間軸
+            </span>
 
+            <!-- 🌟 三大核心按鈕觸發門鏈 -->
             <div
                 style="
                     display: flex;
                     align-items: center;
-                    gap: 5px;
+                    gap: 6px;
                     flex-wrap: wrap;
                 "
             >
                 <button
-                    @click="openProtectiveEquipment"
+                    @click="emit('open-modal', 'equipment')"
                     style="
                         font-size: 10px;
-                        color: var(--green);
-                        background: var(--green-lt);
-                        border: 1.5px solid var(--green-bd);
+                        color: #0f766e;
+                        background: #e0f2fe;
+                        border: 1.5px solid #bae6fd;
                         border-radius: 5px;
-                        padding: 2px 8px;
+                        padding: 3px 10px;
+                        font-weight: 700;
                         cursor: pointer;
-                        white-space: nowrap;
+                        transition: opacity 0.15s;
                     "
+                    onmouseover="this.style.opacity = 0.8"
+                    onmouseout="this.style.opacity = 1"
                 >
                     🛡️ 新增保護設備
                 </button>
+
                 <button
-                    @click="openNWCreate"
+                    @click="emit('open-modal', 'nw')"
                     style="
                         font-size: 10px;
-                        color: var(--purple);
-                        background: var(--purple-lt);
-                        border: 1.5px solid var(--purple-bd);
+                        color: #7c3aed;
+                        background: #f3e8ff;
+                        border: 1.5px solid #e9d5ff;
                         border-radius: 5px;
-                        padding: 2px 8px;
+                        padding: 3px 10px;
+                        font-weight: 700;
                         cursor: pointer;
-                        white-space: nowrap;
+                        transition: opacity 0.15s;
                     "
+                    onmouseover="this.style.opacity = 0.8"
+                    onmouseout="this.style.opacity = 1"
                 >
                     ➕ 新增 📷 Nurse Watching
                 </button>
+
                 <button
-                    @click="openNursingRecordPopup"
+                    @click="emit('open-modal', 'record')"
                     style="
                         font-size: 10px;
-                        color: var(--teal);
-                        background: var(--teal-lt);
-                        border: 1.5px solid var(--teal-bd);
+                        color: #0f766e;
+                        background: #ccfbf1;
+                        border: 1.5px solid #99f6e4;
                         border-radius: 5px;
-                        padding: 2px 8px;
+                        padding: 3px 10px;
+                        font-weight: 700;
                         cursor: pointer;
-                        white-space: nowrap;
+                        transition: opacity 0.15s;
                     "
+                    onmouseover="this.style.opacity = 0.8"
+                    onmouseout="this.style.opacity = 1"
                 >
                     ➕ 新增護理記錄
                 </button>
+
                 <span
-                    style="font-size: 9px; color: var(--slate-lt)"
-                    id="nr-autosave"
+                    style="
+                        font-size: 9px;
+                        color: #94a3b8;
+                        font-weight: normal;
+                        margin-left: 4px;
+                    "
                 >
                     ⏱ 主動暫存：{{ store.autoSaveTime }}
                 </span>
             </div>
         </div>
 
+        <!-- 實時護理記錄顯示槽（與大腦 Pinia 時間軸綁定） -->
         <div
-            style="overflow-y: auto; max-height: 200px; padding: 6px 10px"
-            id="nursing-record-list"
+            class="nursing-records-log-pool"
+            style="
+                overflow-y: auto;
+                max-height: 110px;
+                background: white;
+                padding: 8px 12px;
+                font-size: 11px;
+                min-height: 50px;
+            "
         >
             <div
-                v-for="rec in activeRecords"
+                v-for="rec in store.nursingRecords"
                 :key="rec.id"
-                class="nr-item"
-                :data-id="rec.id"
-                :style="getItemStyle(rec.isDeleted)"
+                style="
+                    padding: 4px 0;
+                    border-bottom: 1px dashed #f1f5f9;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                "
             >
                 <span
-                    style="flex: 1; font-size: 11px; color: #1e293b"
-                    :style="getContentStyle(rec.isDeleted)"
+                    :style="{
+                        textDecoration: rec.isDeleted ? 'line-through' : 'none',
+                        color: rec.isDeleted ? '#94a3b8' : '#334155',
+                    }"
                 >
-                    @{{ rec.time }} {{ rec.content }} {{ rec.nurse }}
-                    <span v-if="rec.isDeleted" class="audit-trail-tag">{{
-                        rec.deletedMeta
-                    }}</span>
+                    <b style="color: #0f766e; margin-right: 6px"
+                        >[{{ rec.time }}]</b
+                    >
+                    {{ rec.content }}
+                    <span
+                        v-if="rec.isDeleted"
+                        style="
+                            color: #ef4444;
+                            margin-left: 6px;
+                            font-style: italic;
+                            font-size: 10px;
+                        "
+                        >{{ rec.deletedMeta }}</span
+                    >
                 </span>
-
                 <button
                     v-if="!rec.isDeleted"
-                    @click="editNursingRecordById(rec.id, rec.content)"
+                    @click="store.deleteNursingRecord(rec.id)"
                     style="
-                        font-size: 10px;
-                        color: var(--teal);
-                        background: none;
+                        color: #ef4444;
                         border: none;
+                        background: transparent;
                         cursor: pointer;
-                        flex-shrink: 0;
+                        font-size: 10px;
+                        font-weight: 600;
                     "
                 >
-                    ✏️
+                    註銷
                 </button>
-                <button
-                    v-if="!rec.isDeleted"
-                    @click="deleteNursingRecordById(rec.id)"
-                    style="
-                        font-size: 10px;
-                        color: var(--red);
-                        background: none;
-                        border: none;
-                        cursor: pointer;
-                        flex-shrink: 0;
-                    "
-                >
-                    🗑️
-                </button>
+            </div>
+            <div
+                v-if="store.nursingRecords.length === 0"
+                style="
+                    color: #94a3b8;
+                    text-align: center;
+                    padding: 10px 0;
+                    font-style: italic;
+                "
+            >
+                今日當班尚無護理處置追蹤紀錄。
             </div>
         </div>
     </div>
@@ -150,6 +180,7 @@ import { computed } from "vue";
 import { useDialysisStore } from "@/store/useNurseStore";
 
 const store = useDialysisStore();
+const emit = defineEmits(["open-modal"]); // 拋出點擊事件通知主畫面
 
 // 篩選出需要顯示的記錄 (包含未刪除的，以及被刪除但需要留在畫面上劃線留痕的)
 const activeRecords = computed(() => store.nursingRecords);

@@ -152,7 +152,11 @@
                     class="fixed-col"
                     :class="{ collapsed: store.isFixedColCollapsed }"
                 >
-                    <PatientFixedInfo />
+                    <PatientFixedInfo
+                        @open-deduct-modal="activeModals.deduct = true"
+                        @open-weight-modal="activeModals.weight = true"
+                        @open-uf-modal="activeModals.uf = true"
+                    />
                 </div>
 
                 <!-- 三大核心步驟動態流程頁籤區 (.tab-col) -->
@@ -188,7 +192,9 @@
 
             <!-- ④ 下方常駐副大看板（一般筆電模式並排顯示） -->
             <div v-if="!isLandscapeTablet" class="nursing-record-bar-block">
-                <NursingRecordBar />
+                <NursingRecordBar
+                    @open-modal="(type) => (activeModals[type] = true)"
+                />
             </div>
 
             <div v-if="!isLandscapeTablet" class="order-pool-block">
@@ -283,6 +289,11 @@
 
     <WeightDeductionModal v-model="activeModals.deduct" />
 
+    <WeightManagementModal v-model="activeModals.weight" />
+
+    <UfManagementModal v-model="activeModals.uf" />
+    <!-- 需建立此元件 -->
+
     <ExtraMeasurementModal
         v-model="activeModals.extra"
         @confirm="handleExtraGridRowSubmit"
@@ -308,17 +319,20 @@ import TabMonitoring from "../components/nurse/TabMonitoring.vue";
 import TabOffSign from "../components/nurse/TabOffSign.vue";
 import NursingRecordBar from "../components/nurse/NursingRecordBar.vue";
 import OrderPool from "../components/nurse/OrderPool.vue";
+import WeightManagementModal from "../components/nurse/modals/WeightManagementModal.vue";
+import UfManagementModal from "../components/nurse/modals/UfManagementModal.vue";
 
 const store = useDialysisStore();
 
-// 🎛️ 彈窗反應式狀態開關集
+// 在 DialysisNursing.vue 的 reactive 定義中
 const activeModals = reactive({
     absence: false,
     equipment: false,
     nw: false,
     record: false,
-    deduct: false,
-    extra: false,
+    deduct: false, // 扣重池管理
+    weight: false, // 🌟 新增：體重管理彈窗
+    uf: false, // 🌟 新增：調水量管理彈窗
 });
 
 // 視窗大小即時監測

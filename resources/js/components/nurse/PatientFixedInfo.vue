@@ -196,10 +196,17 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, defineEmits } from "vue"; // 🌟 1. 補上 defineEmits
 import { useDialysisStore } from "@/store/useNurseStore";
 
 const store = useDialysisStore();
+
+// 🌟 2. 定義對外拋出的開關訊號事件
+const emit = defineEmits([
+    "open-deduct-modal",
+    "open-weight-modal",
+    "open-uf-modal",
+]);
 
 // 判定 HCT 追加觀測是否開啟
 const isAtUnlocked = computed(() => {
@@ -213,30 +220,16 @@ const hctTwColorClass = computed(() => {
     return isAtUnlocked.value ? "text-amber font-700" : "text-teal font-700";
 });
 
-// 彈出式視窗行為對齊 (完全還原原稿的原生行為)
 const triggerWeightPrompt = () => {
-    const w = prompt(
-        "請輸入透前原始體重（如 799 代表 79.9）：",
-        store.preRawWeight || "",
-    );
-    if (w) store.preRawWeight = parseFloat(w);
+    emit("open-weight-modal"); // 發射體重彈窗訊號
 };
 
 const triggerActualUfPrompt = () => {
-    const u = prompt("請調整實際調水量（kg）：", store.actualUfWeight || "3.5");
-    if (u) store.actualUfWeight = parseFloat(u);
+    emit("open-uf-modal"); // 發射調水彈窗訊號
 };
 
 const triggerDeductionManage = () => {
-    const item = prompt("請輸入新增扣重項目名稱（如：便當）：", "自訂衣物");
-    const wt = prompt("請輸入扣重重量（kg）：", "0.5");
-    if (item && wt) {
-        store.deductions.push({
-            id: Date.now(),
-            name: item,
-            weight: parseFloat(wt),
-        });
-    }
+    emit("open-deduct-modal"); // 扣重彈窗訊號
 };
 
 const mockDoctorUpdateDryWeight = () => {
