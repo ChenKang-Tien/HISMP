@@ -215,5 +215,20 @@ export const useDialysisStore = defineStore("dialysis", {
                 return false;
             }
         },
+
+        // 🟢 RESTful [POST] - 更新病患目標脫水量
+        async updatePatientUfGoal(mr, payload) {
+            try {
+                // 此處對接 API 端點，假設後端已開通此路由
+                await api.post(`/patients/${mr}/uf-goal`, payload);
+                // 更新當前狀態或重新獲取資料
+                this.addNursingRecord(`[系統通知] 設定目標脫水量為 ${payload.uf_goal} kg。備註：${payload.note}`);
+                return true;
+            } catch (err) {
+                console.error("UF 目標設定失敗:", err);
+                alert("設定失敗，請確認後端路由是否已部署。");
+                return false;
+            }
+        },
     },
 });

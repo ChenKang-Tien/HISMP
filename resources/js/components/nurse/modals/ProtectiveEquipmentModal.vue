@@ -1,5 +1,5 @@
 <template>
-    <div v-if="modelValue" class="modal-overlay" @click.self="close">
+<div v-if="modelValue" class="modal-overlay" @click.self="close">
         <div class="modal-box">
             <div class="modal-hdr">
                 <span>🛡️ 新增臨床保護設備核定</span>
@@ -59,31 +59,16 @@
                 </button>
             </div>
         </div>
-    </div>
+    </div></input></div></div></div></div></div>
 </template>
 
 <script setup>
-import { reactive, watch } from "vue";
-const props = defineProps({ modelValue: Boolean });
-const emit = defineEmits(["update:modelValue", "confirm"]);
-
-const options = ["約束手套", "安全桌板", "胸腹部約束帶", "肢體約束帶"];
-const form = reactive({ equipments: [], reason: "預防拔針 / 躁動風險" });
-
-watch(
-    () => props.modelValue,
-    (val) => {
-        if (val) {
-            form.equipments = [];
-            form.reason = "預防拔針 / 躁動風險";
-        }
-    },
-);
-
-const close = () => emit("update:modelValue", false);
-const submit = () => {
-    const text = `[保護設備] 今日啟用: ${form.equipments.join("、")}。約束原因：${form.reason}。`;
-    emit("confirm", text);
-    close();
-};
+defineProps(['modelValue']);
+defineEmits(['update:modelValue']);
 </script>
+
+<style scoped>
+.modal-overlay { display: flex; position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 500; align-items: center; justify-content: center; }
+.modal { background: white; border-radius: 13px; padding: 16px; width: 90%; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,.3); max-height: 88vh; overflow-y: auto; position: relative; }
+.modal-x { position: absolute; top: 12px; right: 12px; background: #b91c1c; border: none; color: white; width: 24px; height: 24px; border-radius: 4px; cursor: pointer; }
+</style>

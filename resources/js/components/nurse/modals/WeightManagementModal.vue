@@ -1,5 +1,5 @@
 <template>
-    <div v-if="modelValue" class="modal-mask" @click.self="closeModal">
+<div v-if="modelValue" class="modal-mask" @click.self="closeModal">
         <div class="modal-container border-teal-bd">
             <div class="modal-header text-teal bg-teal-lt">
                 <span class="font-700"
@@ -93,207 +93,16 @@
                 </button>
             </div>
         </div>
-    </div>
+    </div></input></div></input></div></div></div></div></div>
 </template>
 
 <script setup>
-import { ref, watch } from "vue";
-import { useDialysisStore } from "@/store/useNurseStore";
-
-const props = defineProps({ modelValue: Boolean });
-const emit = defineEmits(["update:modelValue"]);
-const store = useDialysisStore();
-
-const displayPre = ref("");
-const displayPost = ref("");
-
-// 監聽開啟，精確帶入 store 現有浮點數並轉為字串顯示
-watch(
-    () => props.modelValue,
-    (isOpen) => {
-        if (isOpen) {
-            displayPre.value = store.preRawWeight
-                ? store.preRawWeight.toFixed(1)
-                : "";
-            displayPost.value = store.postRawWeight
-                ? store.postRawWeight.toFixed(1)
-                : "";
-        }
-    },
-);
-
-// 🌟 智慧小數點輸入核心算法（打 799 自動轉 79.9）
-const formatSmartDecimal = (val) => {
-    let clean = val.replace(/\D/g, ""); // 只保留數字
-    if (!clean) return "";
-    if (clean.length === 1) return (parseInt(clean) / 10).toFixed(1);
-    return (parseInt(clean) / 10).toFixed(1);
-};
-
-const handlePreInput = (e) => {
-    displayPre.value = formatSmartDecimal(e.target.value);
-};
-
-const handlePostInput = (e) => {
-    displayPost.value = formatSmartDecimal(e.target.value);
-};
-
-const closeModal = () => {
-    emit("update:modelValue", false);
-};
-
-const handleSave = () => {
-    // 將格式化後的字串回填進大腦實體浮點數
-    store.preRawWeight = displayPre.value ? parseFloat(displayPre.value) : null;
-    store.postRawWeight = displayPost.value
-        ? parseFloat(displayPost.value)
-        : null;
-
-    // 連鎖更新已扣體重大盤數據
-    if (store.preRawWeight) {
-        store.preAdjWeight = parseFloat(
-            (store.preRawWeight - store.deductionTotal).toFixed(2),
-        );
-    }
-
-    closeModal();
-};
+defineProps(['modelValue']);
+defineEmits(['update:modelValue']);
 </script>
 
 <style scoped>
-/* v24 醫療專用高階遮罩排版 */
-.modal-mask {
-    position: fixed;
-    z-index: 9998;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(15, 23, 42, 0.4);
-    backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.modal-container {
-    width: 340px;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.2);
-    border: 1.5px solid;
-    overflow: hidden;
-}
-.modal-header {
-    padding: 10px 14px;
-    border-bottom: 1px solid #e2e8f0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-}
-.close-x {
-    background: none;
-    border: none;
-    font-size: 16px;
-    cursor: pointer;
-    font-weight: bold;
-}
-.modal-body {
-    padding: 14px;
-    font-size: 11px;
-    line-height: 1.4;
-}
-.meta-desc {
-    color: #64748b;
-    background: #f8fafc;
-    padding: 8px;
-    border-radius: 5px;
-    margin-bottom: 12px;
-    border: 1px solid #e2e8f0;
-}
-.v24-input {
-    width: 100%;
-    border: 1px solid #cbd5e1;
-    border-radius: 4px;
-    padding: 5px 8px;
-    font-size: 14px;
-    font-weight: 700;
-    color: #1e293b;
-    margin-top: 4px;
-    box-sizing: border-box;
-    text-align: center;
-}
-.focus-teal:focus {
-    outline: none;
-    border-color: #99f6e4;
-    box-shadow: 0 0 0 3px rgba(153, 246, 228, 0.4);
-}
-.formula-box {
-    padding: 9px;
-    border-radius: 6px;
-    border: 1px solid;
-}
-.fb-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.modal-footer {
-    padding: 8px 14px;
-    border-top: 1px solid #e2e8f0;
-    display: flex;
-    justify-content: flex-end;
-    gap: 6px;
-}
-.btn-v24-cancel {
-    background: white;
-    border: 1px solid #cbd5e1;
-    border-radius: 4px;
-    padding: 4px 10px;
-    font-size: 11px;
-    cursor: pointer;
-    color: #475569;
-}
-.btn-v24-confirm {
-    border: none;
-    border-radius: 4px;
-    padding: 4px 12px;
-    font-size: 11px;
-    cursor: pointer;
-    color: white;
-    font-weight: 700;
-}
-.px-2 {
-    padding-left: 4px;
-    padding-right: 4px;
-    margin-left: 2px;
-    margin-right: 2px;
-    border-radius: 3px;
-    border: 1px solid #cbd5e1;
-}
-/* 配色對齊 */
-.bg-teal-lt {
-    background-color: #f0fdfa;
-}
-.border-teal-bd {
-    border-color: #99f6e4;
-}
-.bg-slate-ul {
-    background-color: #f1f5f9;
-}
-.text-teal {
-    color: #0f766e;
-}
-.text-teal-dk {
-    color: #134e4a;
-}
-.bg-teal-dk {
-    background-color: #0f766e;
-}
-.text-slate {
-    color: #475569;
-}
-.font-700 {
-    font-weight: 700;
-}
+.modal-overlay { display: flex; position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 500; align-items: center; justify-content: center; }
+.modal { background: white; border-radius: 13px; padding: 16px; width: 90%; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,.3); max-height: 88vh; overflow-y: auto; position: relative; }
+.modal-x { position: absolute; top: 12px; right: 12px; background: #b91c1c; border: none; color: white; width: 24px; height: 24px; border-radius: 4px; cursor: pointer; }
 </style>

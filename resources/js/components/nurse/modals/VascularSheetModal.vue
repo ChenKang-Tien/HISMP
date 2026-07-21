@@ -1,10 +1,7 @@
 <template>
 <div v-if="modelValue" class="modal-overlay open" @click.self="$emit('update:modelValue', false)">
-<div class="modal" @click.stop>
-            <div class="modal-hdr">
-                <i class="ti ti-droplet"></i> 設定透析脫水量 (UF Goal)
-                <button class="modal-x" @click="$emit('update:modelValue', false)">✕</button>
-            </div>
+        <div class="modal" style="max-width:600px">
+    <div class="modal-hdr"><i class="ti ti-activity-heartbeat"></i>🌿 血管通路</div>
     </div></div>
 </template>
 
