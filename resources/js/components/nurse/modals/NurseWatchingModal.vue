@@ -1,5 +1,5 @@
 <template>
-<div v-if="modelValue" class="modal-overlay" @click.self="close">
+    <div v-if="modelValue" class="modal-overlay" @click.self="close">
         <div class="modal-box">
             <div class="modal-hdr">
                 <span>📷 新增 Nurse Watching 影像事件</span>
@@ -48,16 +48,26 @@
                 </button>
             </div>
         </div>
-    </div></input></div></div></div></div>
+    </div>
 </template>
 
 <script setup>
-defineProps(['modelValue']);
-defineEmits(['update:modelValue']);
-</script>
+import { reactive, watch } from "vue";
+const props = defineProps({ modelValue: Boolean });
+const emit = defineEmits(["update:modelValue", "confirm"]);
 
-<style scoped>
-.modal-overlay { display: flex; position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 500; align-items: center; justify-content: center; }
-.modal { background: white; border-radius: 13px; padding: 16px; width: 90%; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,.3); max-height: 88vh; overflow-y: auto; position: relative; }
-.modal-x { position: absolute; top: 12px; right: 12px; background: #b91c1c; border: none; color: white; width: 24px; height: 24px; border-radius: 4px; cursor: pointer; }
-</style>
+const form = reactive({ source: "廔管與針頭常駐相機 A", note: "" });
+watch(
+    () => props.modelValue,
+    (v) => {
+        if (v) form.note = "";
+    },
+);
+
+const close = () => emit("update:modelValue", false);
+const submit = () => {
+    const text = `[Nurse Watching 📷] 串流來源: ${form.source}。快照備註: ${form.note || "無漏血異常排除覆核完成。"}`;
+    emit("confirm", text);
+    close();
+};
+</script>

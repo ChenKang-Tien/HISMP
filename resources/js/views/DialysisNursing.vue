@@ -73,7 +73,7 @@
     <div class="main">
         <!-- 🟢 左半部大外殼容器（內含側拉面板、今日照護清單） -->
         <div class="left-outer" :style="leftOuterResponsiveStyle">
-            <PatientList />
+            <PatientList @open-modal="handleOpenModal" />
         </div>
 
         <!-- 🟢 右半部大外殼容器 (.right) -->
@@ -293,20 +293,9 @@
 
     <UfManagementModal v-model="activeModals.uf" />
 
-    <BasicInfoModal v-model="activeModals.basicInfo" />
-    <OrderSheetModal v-model="activeModals.orderSheet" />
-    <VascularSheetModal v-model="activeModals.vascularSheet" />
-    <AnemiaSheetModal v-model="activeModals.anemiaSheet" />
-    <LabSheetModal v-model="activeModals.labSheet" />
-    <LongtermOrderModal v-model="activeModals.longtermOrder" />
-    <DialysisRecordModal v-model="activeModals.dialysisRecord" />
-    <SupplyTmrModal v-model="activeModals.supplyTmr" />
-    <PrintLabelModal v-model="activeModals.printLabel" />
-    <IncidentModal v-model="activeModals.incident" />
-
-    <ExtraMeasurementModal
-        v-model="activeModals.extra"
-        @confirm="handleExtraGridRowSubmit"
+    <DialysisRecordModal 
+        v-model="activeModals.dialysisRecord" 
+        :patient="modalTargetPatient" 
     />
 </template>
 
@@ -321,48 +310,30 @@ import NurseWatchingModal from "../components/nurse/modals/NurseWatchingModal.vu
 import AddNursingRecordModal from "../components/nurse/modals/AddNursingRecordModal.vue";
 import WeightDeductionModal from "../components/nurse/modals/WeightDeductionModal.vue";
 import ExtraMeasurementModal from "../components/nurse/modals/ExtraMeasurementModal.vue";
-import WeightManagementModal from "../components/nurse/modals/WeightManagementModal.vue";
-import UfManagementModal from "../components/nurse/modals/UfManagementModal.vue";
-import BasicInfoModal from "../components/nurse/modals/BasicInfoModal.vue";
-import OrderSheetModal from "../components/nurse/modals/OrderSheetModal.vue";
-import VascularSheetModal from "../components/nurse/modals/VascularSheetModal.vue";
-import AnemiaSheetModal from "../components/nurse/modals/AnemiaSheetModal.vue";
-import LabSheetModal from "../components/nurse/modals/LabSheetModal.vue";
-import LongtermOrderModal from "../components/nurse/modals/LongtermOrderModal.vue";
-import DialysisRecordModal from "../components/nurse/modals/DialysisRecordModal.vue";
-import SupplyTmrModal from "../components/nurse/modals/SupplyTmrModal.vue";
-import PrintLabelModal from "../components/nurse/modals/PrintLabelModal.vue";
-import IncidentModal from "../components/nurse/modals/IncidentModal.vue";
 
+import PatientList from "../components/nurse/PatientList.vue";
 import PatientFixedInfo from "../components/nurse/PatientFixedInfo.vue";
 import TabOnSign from "../components/nurse/TabOnSign.vue";
 import TabMonitoring from "../components/nurse/TabMonitoring.vue";
 import TabOffSign from "../components/nurse/TabOffSign.vue";
 import NursingRecordBar from "../components/nurse/NursingRecordBar.vue";
 import OrderPool from "../components/nurse/OrderPool.vue";
+import WeightManagementModal from "../components/nurse/modals/WeightManagementModal.vue";
+import UfManagementModal from "../components/nurse/modals/UfManagementModal.vue";
 
 const store = useDialysisStore();
 
 // 在 DialysisNursing.vue 的 reactive 定義中
 const activeModals = reactive({
-    absence: false,
-    equipment: false,
-    nw: false,
-    record: false,
-    deduct: false, // 扣重池管理
-    weight: false, // 🌟 新增：體重管理彈窗
-    uf: false, // 🌟 新增：調水量管理彈窗
-    basicInfo: false,
-    orderSheet: false,
-    vascularSheet: false,
-    anemiaSheet: false,
-    labSheet: false,
-    longtermOrder: false,
+    // ... 其他 modal ...
     dialysisRecord: false,
-    supplyTmr: false,
-    printLabel: false,
-    incident: false
 });
+const modalTargetPatient = ref(null);
+
+const handleOpenModal = (type, pt = null) => {
+    activeModals[type] = true;
+    if (pt) modalTargetPatient.value = pt;
+};
 
 // 視窗大小即時監測
 const windowWidth = ref(window.innerWidth);

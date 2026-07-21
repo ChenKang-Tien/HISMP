@@ -301,7 +301,8 @@
                                         color: #0f766e;
                                         font-weight: 700;
                                     "
-                                    >📋 透析記錄單</span
+                                    @click.stop="emit('open-modal', 'dialysisRecord', pt)"
+                                >📋 透析記錄單</span
                                 >
                             </div>
                         </div>
@@ -434,8 +435,8 @@
 import { ref, computed } from "vue";
 import { useDialysisStore } from "@/store/useNurseStore";
 
+const emit = defineEmits(['open-modal']);
 const store = useDialysisStore();
-console.log(store);
 
 const isFlyoutOpen = ref(false);
 const isTmrOpen = ref(false);

@@ -1,5 +1,5 @@
 <template>
-<div v-if="modelValue" class="modal-overlay" @click.self="close">
+    <div v-if="modelValue" class="modal-overlay" @click.self="close">
         <div class="modal-box" style="max-width: 500px">
             <div class="modal-hdr">
                 <span>📝 新增具名護理記錄 (Progress Notes)</span>
@@ -43,12 +43,22 @@
 </template>
 
 <script setup>
-defineProps(['modelValue']);
-defineEmits(['update:modelValue']);
-</script>
+import { ref, watch } from "vue";
+const props = defineProps({ modelValue: Boolean });
+const emit = defineEmits(["update:modelValue", "confirm"]);
 
-<style scoped>
-.modal-overlay { display: flex; position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 500; align-items: center; justify-content: center; }
-.modal { background: white; border-radius: 13px; padding: 16px; width: 90%; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,.3); max-height: 88vh; overflow-y: auto; position: relative; }
-.modal-x { position: absolute; top: 12px; right: 12px; background: #b91c1c; border: none; color: white; width: 24px; height: 24px; border-radius: 4px; cursor: pointer; }
-</style>
+const content = ref("");
+watch(
+    () => props.modelValue,
+    (val) => {
+        if (val) content.value = "";
+    },
+);
+
+const close = () => emit("update:modelValue", false);
+const submit = () => {
+    if (!content.value.trim()) return;
+    emit("confirm", content.value.trim());
+    close();
+};
+</script>
