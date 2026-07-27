@@ -124,7 +124,6 @@
                                 <span class="mr-no">{{ pt.mr }}</span>
                                 <span class="pt-name">{{ pt.name }}</span>
 
-                                <!-- HCT 智慧連動膠囊 (DL-136) -->
                                 <span
                                     class="pt-hct"
                                     style="
@@ -144,6 +143,7 @@
                                             cursor: pointer;
                                             color: #b45309;
                                         "
+                                        @click.stop="emit('open-modal', 'hct', pt)"
                                     >
                                         TW:{{ store.hctTW || "—" }}
                                     </span>
@@ -156,7 +156,9 @@
                                             border-radius: 3px;
                                             padding: 1px 5px;
                                             color: #0f766e;
+                                            cursor: pointer;
                                         "
+                                        @click.stop="emit('open-modal', 'hct', pt)"
                                     >
                                         TW:{{ pt.hct }}
                                     </span>
@@ -166,7 +168,7 @@
                                 <span
                                     class="cam-btn"
                                     v-if="pt.hasNW"
-                                    @click.stop="showNWAlert(pt.bed === '01')"
+                                    @click.stop="emit('open-modal', 'nw', pt)"
                                 >
                                     📷 NW<span
                                         class="nw-dot"
@@ -287,12 +289,12 @@
                                     { open: openDrawers.has(pt.bed) },
                                 ]"
                             >
-                                <span class="dbtn">🪪 基本資料</span>
-                                <span class="dbtn">📝 醫囑單</span>
-                                <span class="dbtn">🌿 血管通路</span>
-                                <span class="dbtn">🩸 貧血治療</span>
-                                <span class="dbtn">🧪 檢驗記錄</span>
-                                <span class="dbtn">📋 長期醫囑</span>
+                                <span class="dbtn" @click.stop="emit('open-modal', 'basicInfo', pt)">🪪 基本資料</span>
+                                <span class="dbtn" @click.stop="emit('open-modal', 'orderSheet', pt)">📝 醫囑單</span>
+                                <span class="dbtn" @click.stop="emit('open-modal', 'vascular', pt)">🌿 血管通路</span>
+                                <span class="dbtn" @click.stop="emit('open-modal', 'anemia', pt)">🩸 貧血治療</span>
+                                <span class="dbtn" @click.stop="emit('open-modal', 'lab', pt)">🧪 檢驗記錄</span>
+                                <span class="dbtn" @click.stop="emit('open-modal', 'longterm', pt)">📋 長期醫囑</span>
                                 <span
                                     class="dbtn"
                                     style="
@@ -377,6 +379,7 @@
         </div>
 
         <!-- 假單審查對話盒 -->
+        <NurseWatchingModal v-model="props.activeModals.nw" />
         <div :class="['modal-overlay', { open: showAbsenceModal }]">
             <div class="modal" style="max-width: 360px">
                 <div class="modal-hdr">
@@ -436,11 +439,13 @@ import { ref, computed } from "vue";
 import { useDialysisStore } from "@/store/useNurseStore";
 
 const emit = defineEmits(['open-modal']);
+const props = defineProps({ activeModals: Object });
 const store = useDialysisStore();
 
 const isFlyoutOpen = ref(false);
 const isTmrOpen = ref(false);
 const openDrawers = ref(new Set());
+import NurseWatchingModal from "@/components/nurse/modals/NurseWatchingModal.vue";
 const showAbsenceModal = ref(false);
 
 let longPressTimer = null;

@@ -73,7 +73,10 @@
     <div class="main">
         <!-- 🟢 左半部大外殼容器（內含側拉面板、今日照護清單） -->
         <div class="left-outer" :style="leftOuterResponsiveStyle">
-            <PatientList @open-modal="handleOpenModal" />
+            <PatientList
+                :activeModals="activeModals"
+                @open-modal="handleOpenModal"
+            />
         </div>
 
         <!-- 🟢 右半部大外殼容器 (.right) -->
@@ -266,6 +269,13 @@
         </div>
     </div>
 
+    <BasicInfoModal v-model="activeModals.basicInfo" :patient="modalTargetPatient" />
+    <OrderSheetModal v-model="activeModals.orderSheet" :patient="modalTargetPatient" />
+    <VascularSheetModal v-model="activeModals.vascular" :patient="modalTargetPatient" />
+    <AnemiaSheetModal v-model="activeModals.anemia" :patient="modalTargetPatient" />
+    <LabSheetModal v-model="activeModals.lab" :patient="modalTargetPatient" />
+    <LongtermOrderModal v-model="activeModals.longterm" :patient="modalTargetPatient" />
+
     <AbsenceLeaveModal
         v-model="activeModals.absence"
         :patient="modalTargetPatient"
@@ -282,6 +292,12 @@
         @confirm="handleNursingRecordSubmit"
     />
 
+    <HctEntryModal
+        v-model="activeModals.hct"
+        :initialValue="modalTargetPatient?.hct"
+        @confirm="handleHctSubmit"
+    />
+
     <AddNursingRecordModal
         v-model="activeModals.record"
         @confirm="handleNursingRecordSubmit"
@@ -293,9 +309,9 @@
 
     <UfManagementModal v-model="activeModals.uf" />
 
-    <DialysisRecordModal 
-        v-model="activeModals.dialysisRecord" 
-        :patient="modalTargetPatient" 
+    <DialysisRecordModal
+        v-model="activeModals.dialysisRecord"
+        :patient="modalTargetPatient"
     />
 </template>
 
@@ -304,9 +320,17 @@ import { ref, onMounted, onUnmounted, computed, watch, reactive } from "vue";
 import { useDialysisStore } from "@/store/useNurseStore";
 
 // 🧱 引入剛寫好的 6 大 RESTful 對齊功能彈窗元件
+import BasicInfoModal from "../components/nurse/modals/BasicInfoModal.vue";
+import OrderSheetModal from "../components/nurse/modals/OrderSheetModal.vue";
+import VascularSheetModal from "../components/nurse/modals/VascularSheetModal.vue";
+import AnemiaSheetModal from "../components/nurse/modals/AnemiaSheetModal.vue";
+import LabSheetModal from "../components/nurse/modals/LabSheetModal.vue";
+import LongtermOrderModal from "../components/nurse/modals/LongtermOrderModal.vue";
+
 import AbsenceLeaveModal from "../components/nurse/modals/AbsenceLeaveModal.vue";
 import ProtectiveEquipmentModal from "../components/nurse/modals/ProtectiveEquipmentModal.vue";
 import NurseWatchingModal from "../components/nurse/modals/NurseWatchingModal.vue";
+import HctEntryModal from "../components/nurse/modals/HctEntryModal.vue";
 import AddNursingRecordModal from "../components/nurse/modals/AddNursingRecordModal.vue";
 import WeightDeductionModal from "../components/nurse/modals/WeightDeductionModal.vue";
 import ExtraMeasurementModal from "../components/nurse/modals/ExtraMeasurementModal.vue";
@@ -320,19 +344,38 @@ import NursingRecordBar from "../components/nurse/NursingRecordBar.vue";
 import OrderPool from "../components/nurse/OrderPool.vue";
 import WeightManagementModal from "../components/nurse/modals/WeightManagementModal.vue";
 import UfManagementModal from "../components/nurse/modals/UfManagementModal.vue";
+import DialysisRecordModal from "../components/nurse/modals/DialysisRecordModal.vue";
 
 const store = useDialysisStore();
 
 // 在 DialysisNursing.vue 的 reactive 定義中
 const activeModals = reactive({
-    // ... 其他 modal ...
+    absence: false,
+    equipment: false,
+    record: false,
+    deduct: false,
+    weight: false,
+    uf: false,
     dialysisRecord: false,
+    nw: false,
+    extra: false,
+    hct: false,
+    basicInfo: false,
+    orderSheet: false,
+    vascular: false,
+    anemia: false,
+    lab: false,
+    longterm: false,
 });
 const modalTargetPatient = ref(null);
 
 const handleOpenModal = (type, pt = null) => {
+    console.log("handleOpenModal");
+
     activeModals[type] = true;
     if (pt) modalTargetPatient.value = pt;
+
+    console.log(activeModals.dialysisRecord);
 };
 
 // 視窗大小即時監測
@@ -383,6 +426,11 @@ const handleAbsenceSubmit = async (formData) => {
 // 🟢 事件 3：通用護理記錄持久化，連動後端 RESTful [POST] 節點
 const handleNursingRecordSubmit = (contentText) => {
     store.addNursingRecord(contentText);
+};
+
+const handleHctSubmit = (val) => {
+    alert(`🩸 Hct 已更新為 ${val}%`);
+    store.addNursingRecord(`[Hct 更新] 數值更新為 ${val}%`);
 };
 
 // 🟢 事件 4：追加監控網格動態临时加測抄表時段

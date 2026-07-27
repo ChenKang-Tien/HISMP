@@ -19,7 +19,7 @@
             "
         >
             <span style="display: flex; align-items: center; gap: 4px">
-                <i class="ti ti-notes"></i> 今日當班護理記錄時間軸
+                <i class="ti ti-notes"></i> 護理記錄
             </span>
 
             <!-- 🌟 三大核心按鈕觸發門鏈 -->

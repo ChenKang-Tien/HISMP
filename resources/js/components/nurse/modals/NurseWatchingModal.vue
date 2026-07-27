@@ -1,5 +1,5 @@
 <template>
-    <div v-if="modelValue" class="modal-overlay" @click.self="close">
+    <div v-if="modelValue" class="modal-overlay open" @click.self="close">
         <div class="modal-box">
             <div class="modal-hdr">
                 <span>📷 新增 Nurse Watching 影像事件</span>
