@@ -114,71 +114,39 @@ class PatientController extends Controller
 
         }
 
-        // 🚀 完全對齊原稿 V24 / V27 規格的核心測試資料集
-        $activeGroups = [
-            [
-                'name' => 'A 組・楚心瑜護理師（4位）・我的組別',
-                'color' => '#0f766e',
-                'isMine' => true,
-                'patients' => [
-                    [
-                        'bed' => '01',
-                        'mr' => 'MR9876543',
-                        'name' => '薛玉鳳',
-                        'isCrit' => false,
-                        'hct' => '32.5',
-                        'hasNW' => true,
-                        'orderCount' => 2,
-                        'statusText' => '🟢 透析中 ・ 已透 2h 24m ・ 🎯 UF 3.50kg',
-                        'progress' => 60,
-                        'vitals' => ['bp' => '135/82', 'pr' => '78', 'fs' => '142', 'qb' => '250']
-                    ],
-                    [
-                        'bed' => '02',
-                        'mr' => 'MR223344',
-                        'name' => '林*芳',
-                        'isCrit' => true, // 危急閃爍
-                        'hct' => '31.5',
-                        'hasNW' => false,
-                        'orderCount' => 1,
-                        'statusText' => '🔴 危急 ・ 血壓 190/110',
-                        'progress' => 40,
-                        'vitals' => ['bp' => '190/110', 'pr' => '88', 'fs' => '118', 'qb' => '230']
-                    ],
-                    [
-                        'bed' => '05',
-                        'mr' => 'MR445566',
-                        'name' => '李*美',
-                        'isCrit' => false,
-                        'hct' => '33.2',
-                        'hasNW' => true,
-                        'orderCount' => 2,
-                        'statusText' => '🟢 透析中 ・ 已透 3h 32m ・ 🎯 UF 2.20kg',
-                        'progress' => 88,
-                        'vitals' => ['bp' => '110/70', 'pr' => '70', 'fs' => '98', 'qb' => '250']
-                    ]
-                ]
+        // 🚀 根據班別篩選的動態資料集
+        $shift = $request->query('shift', 'noon');
+        
+        $groupsMap = [
+            'morning' => [
+                ['name' => 'A 組・早班專用護理師', 'color' => '#0f766e', 'isMine' => true, 'patients' => [
+                    ['bed' => '01', 'mr' => 'MR-M-01', 'name' => '早班-張小華', 'statusText' => '☀️ 早班 ・ 透析準備', 'orderCount' => 0, 'hasNW' => false, 'progress' => 10, 'isCrit' => false, 'vitals' => ['bp' => '120/80', 'pr' => '70', 'fs' => '100', 'qb' => '200']],
+                    ['bed' => '02', 'mr' => 'MR-M-02', 'name' => '早班-李大明', 'statusText' => '☀️ 早班 ・ 透析中', 'orderCount' => 1, 'hasNW' => false, 'progress' => 40, 'isCrit' => false, 'vitals' => ['bp' => '130/85', 'pr' => '75', 'fs' => '110', 'qb' => '220']]
+                ]]
             ],
-            [
-                'name' => 'B 組・王曉明護理師（4位）',
-                'color' => '#7c3aed',
-                'isMine' => false,
-                'patients' => [
-                    [
-                        'bed' => '07',
-                        'mr' => 'MR556677',
-                        'name' => '陳*志',
-                        'isCrit' => false,
-                        'hct' => null,
-                        'hasNW' => false,
-                        'orderCount' => 0,
-                        'statusText' => '🟢 透析中 ・ 已透 1h 45m',
-                        'progress' => 35,
-                        'vitals' => ['bp' => '128/78', 'pr' => '72', 'fs' => '105', 'qb' => '240']
-                    ]
-                ]
+            'noon' => [
+                ['name' => 'A 組・楚心瑜護理師', 'color' => '#0f766e', 'isMine' => true, 'patients' => [
+                    ['bed' => '01', 'mr' => 'MR9876543', 'name' => '薛玉鳳', 'statusText' => '🟢 午班 ・ 透析中 ・ 已透 2h 24m', 'orderCount' => 2, 'hasNW' => true, 'progress' => 60, 'isCrit' => false, 'vitals' => ['bp' => '135/82', 'pr' => '78', 'fs' => '142', 'qb' => '250']],
+                    ['bed' => '02', 'mr' => 'MR223344', 'name' => '林*芳', 'statusText' => '🔴 午班 ・ 血壓偏高', 'orderCount' => 1, 'hasNW' => false, 'progress' => 40, 'isCrit' => true, 'vitals' => ['bp' => '190/110', 'pr' => '88', 'fs' => '118', 'qb' => '230']]
+                ]],
+                ['name' => 'C 組・午班實習護理師', 'color' => '#d97706', 'isMine' => false, 'patients' => [
+                    ['bed' => '09', 'mr' => 'MR-N-09', 'name' => '午班-陳小美', 'statusText' => '🟢 午班 ・ 脫水中', 'orderCount' => 0, 'hasNW' => false, 'progress' => 50, 'isCrit' => false, 'vitals' => ['bp' => '115/75', 'pr' => '72', 'fs' => '95', 'qb' => '200']]
+                ]]
+            ],
+            'night' => [
+                ['name' => 'B 組・晚班輪值護理師', 'color' => '#7c3aed', 'isMine' => true, 'patients' => [
+                    ['bed' => '08', 'mr' => 'MR-E-08', 'name' => '晚班-黃大偉', 'statusText' => '🌙 晚班 ・ 準備下機', 'orderCount' => 0, 'hasNW' => false, 'progress' => 90, 'isCrit' => false, 'vitals' => ['bp' => '125/78', 'pr' => '70', 'fs' => '98', 'qb' => '210']],
+                    ['bed' => '10', 'mr' => 'MR-E-10', 'name' => '晚班-趙小莉', 'statusText' => '🌙 晚班 ・ 透析開始', 'orderCount' => 1, 'hasNW' => false, 'progress' => 5, 'isCrit' => false, 'vitals' => ['bp' => '120/75', 'pr' => '74', 'fs' => '102', 'qb' => '200']]
+                ]]
+            ],
+            'all' => [
+                ['name' => '全院監控', 'color' => '#64748b', 'isMine' => true, 'patients' => [
+                    ['bed' => 'All', 'mr' => 'SYS', 'name' => '全院綜整', 'statusText' => '🌐 系統全班別連線中', 'orderCount' => 5, 'hasNW' => true, 'progress' => 0, 'isCrit' => false, 'vitals' => ['bp' => '--', 'pr' => '--', 'fs' => '--', 'qb' => '--']]
+                ]]
             ]
         ];
+
+        $activeGroups = $groupsMap[$shift] ?? $groupsMap['noon'];
 
         // 離院池模擬空陣列
         $absentPatients = [];

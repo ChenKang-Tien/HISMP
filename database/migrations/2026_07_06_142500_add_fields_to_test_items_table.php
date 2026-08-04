@@ -9,11 +9,21 @@ class AddFieldsToTestItemsTable extends Migration
     public function up()
     {
         Schema::table('test_items', function (Blueprint $table) {
-            $table->string('frequency', 20)->default('mo')->comment('月檢mo/季檢qt/年檢yr/其他ot');
-            $table->decimal('range_lower', 10, 2)->nullable()->comment('合理區間下限');
-            $table->decimal('range_upper', 10, 2)->nullable()->comment('合理區間上限');
-            $table->string('unit', 50)->nullable()->comment('單位');
-            $table->text('education_summary')->nullable()->comment('衛教摘要');
+            if (!Schema::hasColumn('test_items', 'frequency')) {
+                $table->string('frequency', 20)->default('mo')->comment('月檢mo/季檢qt/年檢yr/其他ot');
+            }
+            if (!Schema::hasColumn('test_items', 'range_lower')) {
+                $table->decimal('range_lower', 10, 2)->nullable()->comment('合理區間下限');
+            }
+            if (!Schema::hasColumn('test_items', 'range_upper')) {
+                $table->decimal('range_upper', 10, 2)->nullable()->comment('合理區間上限');
+            }
+            if (!Schema::hasColumn('test_items', 'unit')) {
+                $table->string('unit', 50)->nullable()->comment('單位');
+            }
+            if (!Schema::hasColumn('test_items', 'education_summary')) {
+                $table->string('education_summary', 500)->nullable()->comment('衛教總結');
+            }
         });
     }
 

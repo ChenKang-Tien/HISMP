@@ -64,14 +64,18 @@
                     <i class="ti ti-users"></i> 今日照護病患
                 </div>
                 <div class="shift-selector">
-                    <span class="shift-btn">早班</span>
-                    <span class="shift-btn active">午班</span>
-                    <span class="shift-btn">晚班</span>
-                    <span class="shift-btn">全院</span>
+                    <span
+                        v-for="s in ['早班', '午班', '晚班', '全院']"
+                        :key="s"
+                        :class="['shift-btn', { active: store.currentShiftFilter === s }]"
+                        @click="store.setShiftFilter(s)"
+                    >
+                        {{ s }}
+                    </span>
                 </div>
             </div>
 
-            <div class="left-scroll">
+            <div class="left-scroll" :key="store.currentShiftFilter">
                 <div v-for="group in store.filteredGroups" :key="group.name">
                     <!-- 組別分隔線 (完全對齊原稿樣式) -->
                     <div class="group-divider">
@@ -109,7 +113,7 @@
                         ></div>
 
                         <div class="ptcard-body">
-                            <!-- prow1 (完全還原原稿內嵌行內樣式與排卡) -->
+                            <!-- prow1 -->
                             <div class="prow1">
                                 <span
                                     :class="[
@@ -133,22 +137,7 @@
                                     "
                                 >
                                     <span
-                                        v-if="pt.bed === '01'"
-                                        style="
-                                            font-size: 9px;
-                                            background: #fffbeb;
-                                            border: 1px solid #fde68a;
-                                            border-radius: 3px;
-                                            padding: 1px 5px;
-                                            cursor: pointer;
-                                            color: #b45309;
-                                        "
-                                        @click.stop="emit('open-modal', 'hct', pt)"
-                                    >
-                                        TW:{{ store.hctTW || "—" }}
-                                    </span>
-                                    <span
-                                        v-else-if="pt.hct"
+                                        v-if="pt.hct"
                                         style="
                                             font-size: 9px;
                                             background: #f0fdfa;
@@ -164,19 +153,16 @@
                                     </span>
                                 </span>
 
-                                <!-- Nurse Watching 膠囊與閃爍點 -->
+                                <!-- Nurse Watching -->
                                 <span
                                     class="cam-btn"
                                     v-if="pt.hasNW"
                                     @click.stop="emit('open-modal', 'nw', pt)"
                                 >
-                                    📷 NW<span
-                                        class="nw-dot"
-                                        v-if="pt.bed === '01'"
-                                    ></span>
+                                    📷 NW
                                 </span>
 
-                                <!-- 醫囑數量大卡槽 -->
+                                <!-- 醫囑數量 -->
                                 <span
                                     class="order-badge"
                                     v-if="pt.orderCount > 0"
@@ -188,7 +174,7 @@
                                 </span>
                             </div>
 
-                            <!-- 狀態提示條 -->
+                            <!-- 狀態提示條 (動態顯示班別與狀態) -->
                             <div
                                 :class="['sband', pt.isCrit ? 'crit' : 'dial']"
                             >
@@ -364,7 +350,7 @@
                 <div class="tmr-body" v-if="isTmrOpen">
                     <button
                         class="tmr-btn"
-                        @click="alert('📋 明日護理師排班名單')"
+                        @click="emit('open-modal', 'nursingShift')"
                     >
                         <i class="ti ti-users"></i> 護理師明日排班名單
                     </button>

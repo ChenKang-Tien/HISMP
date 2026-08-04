@@ -186,9 +186,9 @@
                     </div>
 
                     <div class="tab-content">
-                        <TabOnSign v-if="store.activeTab === 0" />
-                        <TabMonitoring v-if="store.activeTab === 1" />
-                        <TabOffSign v-if="store.activeTab === 2" />
+                        <TabOnSign v-if="store.activeTab === 0" key="on-sign" />
+                        <TabMonitoring v-if="store.activeTab === 1" key="monitoring" />
+                        <TabOffSign v-if="store.activeTab === 2" key="off-sign" />
                     </div>
                 </div>
             </div>
@@ -309,10 +309,13 @@
 
     <UfManagementModal v-model="activeModals.uf" />
 
+    <ExtraMeasurementModal v-model="activeModals.extra" @confirm="handleExtraGridRowSubmit" />
+
     <DialysisRecordModal
         v-model="activeModals.dialysisRecord"
         :patient="modalTargetPatient"
     />
+    <NursingShiftModal v-model="activeModals.nursingShift" />
 </template>
 
 <script setup>
@@ -345,6 +348,7 @@ import OrderPool from "../components/nurse/OrderPool.vue";
 import WeightManagementModal from "../components/nurse/modals/WeightManagementModal.vue";
 import UfManagementModal from "../components/nurse/modals/UfManagementModal.vue";
 import DialysisRecordModal from "../components/nurse/modals/DialysisRecordModal.vue";
+import NursingShiftModal from "../components/nurse/modals/NursingShiftModal.vue";
 
 const store = useDialysisStore();
 
@@ -366,6 +370,7 @@ const activeModals = reactive({
     anemia: false,
     lab: false,
     longterm: false,
+    nursingShift: false, // 💡 新增排班彈窗狀態
 });
 const modalTargetPatient = ref(null);
 

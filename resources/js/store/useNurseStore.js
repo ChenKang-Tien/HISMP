@@ -20,6 +20,7 @@ export const useDialysisStore = defineStore("dialysis", {
     state: () => ({
         nurseName: "楚心瑜",
         currentShift: "午班 11:00~17:00",
+        currentShiftFilter: "午班", // 💡 新增班別過濾狀態
         searchQuery: "",
 
         // UI 佈局與頁籤
@@ -39,6 +40,10 @@ export const useDialysisStore = defineStore("dialysis", {
         patientGroups: [], // 今日在院病患名單 (GET /dialysis/patients)
         absentPatientsList: [], // 請假住院固定池 (POST /absence-leave 搬移結果)
         offsignPatients: [], // 已下機完帳清單
+        
+        // 🧪 API 加載狀態
+        loading: false,
+        error: null,
 
         // ⚖️ 體重、扣重與 HCT 反應式狀態
         preRawWeight: 0,
@@ -102,33 +107,96 @@ export const useDialysisStore = defineStore("dialysis", {
     },
 
     actions: {
-        // 🟢 RESTful [GET] - 載入今日當班次所有病患大盤
-        async fetchTodayShiftPatients() {
-            try {
-                const res = await api.get("/dialysis/patients", {
-                    params: { shift: "noon" },
-                });
-                console.log(res.data);
+    // 🟢 RESTful [GET] - 載入今日當班次所有病患大盤
+    async fetchTodayShiftPatients() {
+        try {
+            const shiftMap = { '早班': 'morning', '午班': 'noon', '晚班': 'night', '全院': 'all' };
+            const res = await api.get("/dialysis/patients", {
+                params: { shift: shiftMap[this.currentShiftFilter] || 'noon' },
+            });
+            console.log(res.data);
 
+            // ⚠️ 如果後端未回傳數據 (或測試階段)，強制使用補強後的假資料進行視覺模擬
+            if (!res.data.active_groups || res.data.active_groups.length === 0) {
+                console.warn("後端無資料，載入模擬假資料 (含各班別對應)");
+                this.patientGroups = this.generateMockGroups(this.currentShiftFilter);
+            } else {
+                // 修正：將 API 回傳的資料結構賦值給 patientGroups
                 this.patientGroups = res.data.active_groups;
-                this.absentPatientsList = res.data.absent_patients;
-                this.offsignPatients = res.data.offsign_patients;
-            } catch (err) {
-                console.error("API 連線失敗狀態:", err);
-
-                // 🚀 火箭測試攔截：如果後端吐回我們寫的 500 斷點，立刻在瀏覽器彈出對話框
-                if (
-                    err.response &&
-                    err.response.data &&
-                    err.response.data.message
-                ) {
-                    alert(err.response.data.message);
-                } else {
-                    alert(
-                        "⚠️ 網路連線失敗，請檢查 Laravel Route 是否有開通 API 大腦開關！",
-                    );
-                }
             }
+
+            this.absentPatientsList = res.data.absent_patients || [];
+            this.offsignPatients = res.data.offsign_patients || [];
+        } catch (err) {
+            console.error("API 連線失敗狀態:", err);
+            // 視情況決定是否補假資料
+            this.patientGroups = this.generateMockGroups(this.currentShiftFilter);
+            alert("⚠️ 網路連線失敗，目前顯示本地模擬資料。");
+        }
+    },
+
+    // 🟢 內部輔助：生成各班別模擬假資料
+    generateMockGroups(shift) {
+        const mockData = {
+            '早班': [
+                {
+                    name: "A 組・早班專用護理師",
+                    color: "#0f766e",
+                    isMine: true,
+                    patients: [
+                        { bed: "01", mr: "MR-M-01", name: "早班-張小華", statusText: "☀️ 早班 ・ 透析準備" },
+                        { bed: "02", mr: "MR-M-02", name: "早班-李大明", statusText: "☀️ 早班 ・ 透析中" }
+                    ]
+                },
+                {
+                    name: "B 組・早班備援護理師",
+                    color: "#059669",
+                    isMine: false,
+                    patients: [
+                        { bed: "05", mr: "MR-M-05", name: "早班-王小明", statusText: "☀️ 早班 ・ 已透析 1h" }
+                    ]
+                }
+            ],
+            '午班': [
+                {
+                    name: "A 組・楚心瑜護理師",
+                    color: "#0f766e",
+                    isMine: true,
+                    patients: [
+                        { bed: "01", mr: "MR9876543", name: "薛玉鳳", statusText: "🟢 午班 ・ 透析中 ・ 已透 2h 24m" },
+                        { bed: "02", mr: "MR223344", name: "林*芳", statusText: "🔴 午班 ・ 血壓偏高" }
+                    ]
+                },
+                {
+                    name: "C 組・午班實習護理師",
+                    color: "#d97706",
+                    isMine: false,
+                    patients: [
+                        { bed: "09", mr: "MR-N-09", name: "午班-陳小美", statusText: "🟢 午班 ・ 脫水中" }
+                    ]
+                }
+            ],
+            '晚班': [
+                {
+                    name: "B 組・晚班輪值護理師",
+                    color: "#7c3aed",
+                    isMine: true,
+                    patients: [
+                        { bed: "08", mr: "MR-E-08", name: "晚班-黃大偉", statusText: "🌙 晚班 ・ 準備下機" },
+                        { bed: "10", mr: "MR-E-10", name: "晚班-趙小莉", statusText: "🌙 晚班 ・ 透析開始" }
+                    ]
+                }
+            ],
+            '全院': [
+                { name: "全院綜整", color: "#64748b", isMine: true, patients: [{ bed: "All", mr: "SYS", name: "全院監控模式", statusText: "🌐 系統整合中" }] }
+            ]
+        };
+        return mockData[shift] || mockData['午班'];
+    },
+
+        async setShiftFilter(shift) {
+            this.currentShiftFilter = shift;
+            await this.fetchTodayShiftPatients();
         },
 
         // 🟢 RESTful [GET] - 切換病患，拉取該病患本班次特定醫療資源

@@ -40,6 +40,7 @@
                             'current-row': row.isCurrent,
                             'extra-row': row.isExtra,
                         }"
+                        @click="console.log('Row key:', row.key)"
                     >
                         <td class="time-cell" :class="{ extra: row.isExtra }">
                             {{ row.label }}<br /><span class="time-sub">{{
@@ -81,26 +82,26 @@
                         </td>
 
                         <!-- 處置與備註 -->
-                        <td>
+                        <!-- <td>
                             <input
                                 v-model="store.monNotes[row.key]"
                                 type="text"
                                 class="inline-note-input"
                                 placeholder="處置..."
                             />
-                        </td>
+                        </td> -->
 
                         <!-- 機台核對狀態 (AK/滲血/管路) -->
                         <td class="fkr-cell-text">
-                            <div v-if="store.careSignData[row.key]">
+                            <div v-if="store.careSignData?.[row.key]">
                                 <div>
-                                    AK:{{ store.careSignData[row.key].ak }}
+                                    AK:{{ store.careSignData[row.key]?.ak }}
                                 </div>
                                 <div>
-                                    滲:{{ store.careSignData[row.key].needle }}
+                                    滲:{{ store.careSignData[row.key]?.needle }}
                                 </div>
                                 <div>
-                                    管:{{ store.careSignData[row.key].tube }}
+                                    管:{{ store.careSignData[row.key]?.tube }}
                                 </div>
                             </div>
                             <span v-else class="empty-dash">—</span>
@@ -109,17 +110,19 @@
                         <!-- Care Sign 簽章欄 (完全對齊原稿固定右側) -->
                         <td
                             class="care-cell"
-                            :class="{ signed: store.careSignData[row.key] }"
+                            :class="{ signed: store.careSignData?.[row.key] }"
                             @click="toggleCareSign(row.key, row.label)"
                         >
                             <button
                                 class="care-btn"
-                                :class="{ signed: store.careSignData[row.key] }"
+                                :class="{
+                                    signed: store.careSignData?.[row.key],
+                                }"
                             >
-                                {{ store.careSignData[row.key] ? "✓" : "" }}
+                                {{ store.careSignData?.[row.key] ? "✓" : "" }}
                             </button>
                             <div
-                                v-if="store.careSignData[row.key]"
+                                v-if="store.careSignData?.[row.key]"
                                 class="care-who"
                             >
                                 楚心瑜
