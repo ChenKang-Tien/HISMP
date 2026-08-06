@@ -356,7 +356,7 @@
                     </button>
                     <button
                         class="tmr-btn green"
-                        @click="alert('🚀 明日庫房領料大總表已具名鎖定')"
+                        @click="emit('open-modal', 'supplyTmr')"
                     >
                         <i class="ti ti-package"></i> 🚀 明日庫房領料大總表
                     </button>
@@ -365,7 +365,10 @@
         </div>
 
         <!-- 假單審查對話盒 -->
-        <NurseWatchingModal v-model="props.activeModals.nw" />
+        <NurseWatchingModal
+            :model-value="props.activeModals.nw"
+            @update:model-value="(v) => props.activeModals.nw = v"
+        />
         <div :class="['modal-overlay', { open: showAbsenceModal }]">
             <div class="modal" style="max-width: 360px">
                 <div class="modal-hdr">

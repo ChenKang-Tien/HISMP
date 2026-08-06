@@ -298,5 +298,25 @@ export const useDialysisStore = defineStore("dialysis", {
                 return false;
             }
         },
+        async reportIncident(mr, type) {
+            try {
+                await api.post(`/patients/${mr}/incidents`, { type });
+                this.addNursingRecord(`[臨床事件] ${type} 已記錄。`);
+                return true;
+            } catch (err) {
+                console.error("事件記錄失敗:", err);
+                return false;
+            }
+        },
+        async lockSupplyList() {
+            try {
+                await api.post(`/nursing/supply-tmr/lock`);
+                alert("🔒 領料清單已鎖定並同步至庫房系統。");
+                return true;
+            } catch (err) {
+                console.error("領料鎖定失敗:", err);
+                return false;
+            }
+        },
     },
 });

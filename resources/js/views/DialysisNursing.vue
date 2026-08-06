@@ -116,10 +116,10 @@
                     </div>
                 </div>
                 <div class="r-hdr-actions">
-                    <button class="print-btn">
+                    <button class="print-btn" @click="activeModals.printLabel = true">
                         <i class="ti ti-printer"></i>📄 列印病患聯絡溝通標籤
                     </button>
-                    <button class="incident-btn">
+                    <button class="incident-btn" @click="activeModals.incident = true">
                         <i class="ti ti-bolt"></i>⚡ 臨床突發事件
                     </button>
                     <button
@@ -310,6 +310,9 @@
     <UfManagementModal v-model="activeModals.uf" />
 
     <ExtraMeasurementModal v-model="activeModals.extra" @confirm="handleExtraGridRowSubmit" />
+    <IncidentModal v-model="activeModals.incident" :patient="modalTargetPatient" @confirm="handleIncidentSubmit" />
+    <PrintLabelModal v-model="activeModals.printLabel" :patient="modalTargetPatient" />
+    <SupplyTmrModal v-model="activeModals.supplyTmr" @confirm="handleSupplyLock" />
 
     <DialysisRecordModal
         v-model="activeModals.dialysisRecord"
@@ -337,6 +340,9 @@ import HctEntryModal from "../components/nurse/modals/HctEntryModal.vue";
 import AddNursingRecordModal from "../components/nurse/modals/AddNursingRecordModal.vue";
 import WeightDeductionModal from "../components/nurse/modals/WeightDeductionModal.vue";
 import ExtraMeasurementModal from "../components/nurse/modals/ExtraMeasurementModal.vue";
+import IncidentModal from "../components/nurse/modals/IncidentModal.vue";
+import PrintLabelModal from "../components/nurse/modals/PrintLabelModal.vue";
+import SupplyTmrModal from "../components/nurse/modals/SupplyTmrModal.vue";
 
 import PatientList from "../components/nurse/PatientList.vue";
 import PatientFixedInfo from "../components/nurse/PatientFixedInfo.vue";
@@ -363,6 +369,9 @@ const activeModals = reactive({
     dialysisRecord: false,
     nw: false,
     extra: false,
+    incident: false,
+    printLabel: false,
+    supplyTmr: false,
     hct: false,
     basicInfo: false,
     orderSheet: false,
@@ -450,6 +459,17 @@ const handleExtraGridRowSubmit = (extraData) => {
     store.addNursingRecord(
         `[網格加測] 於監控網格中動態追加 [${timeKey}] 時段追蹤行。原因：${extraData.reason}`,
     );
+};
+
+const handleIncidentSubmit = async (type) => {
+    if (!modalTargetPatient.value) return;
+    await store.reportIncident(modalTargetPatient.value.mr, type);
+    activeModals.incident = false;
+};
+
+const handleSupplyLock = async () => {
+    await store.lockSupplyList();
+    activeModals.supplyTmr = false;
 };
 
 // 🟢 醫療安全防線：點擊上針 On-Sign 簽章大鈕 (對接 DL-128 血糖防漏鎖)

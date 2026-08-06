@@ -16,8 +16,10 @@
     <div id="print-nursing-detail" style="display:none;background:var(--slate-ul);border-radius:5px;padding:6px 10px;margin-bottom:4px;">
       <div style="font-size:10px;color:var(--slate);margin-bottom:5px;">勾選要列印的記錄：</div>
       <div class="chk-row checked"  style="font-size:10px;padding:4px 6px;"><div class="chk-box" style="width:14px;height:14px;font-size:9px;">✓</div>@09:20 低血壓 BP 92/54，快衝 N/S 100ml，UFR 調降。楚心瑜</div>
-      <div class="chk-row checked"  style="font-size:10px;padding:4px 6px;"><div class="chk-box" style="width:14px;height:14px;font-size:9px;">✓</div>@08:05 透析上針順利，廔管穿刺無滲血，意識清楚。楚心瑜
+      <div class="chk-row checked"  style="font-size:10px;padding:4px 6px;"><div class="chk-box" style="width:14px;height:14px;font-size:9px;">✓</div>@08:05 透析上針順利，廔管穿刺無滲血，意識清楚。楚心瑜</div>
     </div>
+  </div>
+</div>
 </template>
 
 <script setup>
