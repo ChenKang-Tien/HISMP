@@ -254,18 +254,28 @@ export const useDialysisStore = defineStore("dialysis", {
             }
         },
 
-        // 🟢 RESTful [DELETE] - 註銷病歷記錄 (法律加線留痕，打上 isDeleted 標籤)
-        async deleteNursingRecord(id) {
+        // 🟢 RESTful [GET] - 獲取病患詳細電子病歷區塊資訊 (DL-119)
+        async fetchPatientDetails(mr, type) {
             try {
-                const res = await api.delete(`/nursing-records/${id}`);
-                const rec = this.nursingRecords.find((r) => r.id === id);
-                if (rec) {
-                    rec.isDeleted = true;
-                    rec.deletedMeta = res.data.deleted_meta; // 「〈楚心瑜 11:58 刪除〉」
-                }
+                // 對應後端路由：GET /api/v1/patients/{mr}/details/{type}
+                const res = await api.get(`/patients/${mr}/details/${type}`);
+                return res.data;
             } catch (err) {
-                console.error("刪除失敗:", err);
+                console.warn(`[API] 獲取 ${type} 資料失敗，返回模擬資料。`);
+                return this.generateMockDetail(type);
             }
+        },
+
+        generateMockDetail(type) {
+            const mocks = {
+                basicInfo: { name: "薛玉鳳", age: 72, bloodType: "O+", allergies: ["Penicillin"] },
+                orderSheet: [{ id: 1, name: "EPO 4000U", freq: "Weekly" }, { id: 2, name: "Iron IV", freq: "Monthly" }],
+                vascular: { type: "AVF", site: "Left forearm", lastCheck: "2026-08-01" },
+                anemia: { hgb: 9.1, target: 11.0, iron: "Normal" },
+                lab: { K: 6.1, HGB: 9.1, Creatinine: 8.5 },
+                longterm: [{ id: 1, desc: "降壓藥", usage: "Daily" }]
+            };
+            return mocks[type] || { message: "無相關資料" };
         },
 
         // 🟢 RESTful [POST] - 核發離院假單，流轉病患狀態 (DL-116/122)

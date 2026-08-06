@@ -14,9 +14,9 @@
                     <button style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:12px;">▶</button>
                 </div>
                 <div style="display:flex;gap:6px;margin-bottom:10px;">
-                    <div style="flex:1;background:#f0fdfa;border:1.5px solid #99f6e4;border-radius:7px;padding:8px;text-align:center;">
-                        <div style="font-size:10px;color:#64748b;">LW</div>
-                        <div style="font-size:16px;font-weight:700;color:#0f766e;">30.0%</div>
+                    <div v-for="val in (detailData?.hct_history || [])" :key="val.week" style="flex:1;background:#f0fdfa;border:1.5px solid #99f6e4;border-radius:7px;padding:8px;text-align:center;">
+                        <div style="font-size:10px;color:#64748b;">{{ val.week }}</div>
+                        <div style="font-size:16px;font-weight:700;color:#0f766e;">{{ val.value }}%</div>
                     </div>
                 </div>
             </div>
@@ -25,7 +25,7 @@
 </template>
 
 <script setup>
-defineProps(['modelValue']);
+defineProps(['modelValue', 'patient', 'detailData']);
 defineEmits(['update:modelValue']);
 </script>
 

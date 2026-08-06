@@ -8,7 +8,9 @@
             
             <div class="modal-body" style="font-size:12px;">
                 <button class="print-btn-inline" style="margin-bottom:10px;">🖨️ 列印</button>
-                <div style="font-size:11px;color:#64748b;margin-bottom:8px">最近一次：2026-05-20</div>
+                <div style="font-size:11px;color:#64748b;margin-bottom:8px">
+                    {{ detailData?.last_update ? `最近一次：${detailData.last_update}` : '暫無檢驗記錄' }}
+                </div>
                 <table style="width:100%;border-collapse:collapse;font-size:11px;">
                   <tr style="background:#0f766e;color:white;">
                     <th style="padding:4px 8px;border:1px solid rgba(255,255,255,.2)">項目</th>
@@ -16,11 +18,17 @@
                     <th style="padding:4px 8px;border:1px solid rgba(255,255,255,.2)">正常範圍</th>
                     <th style="padding:4px 8px;border:1px solid rgba(255,255,255,.2)">日期</th>
                   </tr>
-                  <tr><td style="padding:4px 8px;border:1px solid #e2e8f0">Hb</td><td style="padding:4px 8px;border:1px solid #e2e8f0;color:#dc2626;font-weight:700">9.1</td><td style="padding:4px 8px;border:1px solid #e2e8f0">11-13 g/dL</td><td style="padding:4px 8px;border:1px solid #e2e8f0">2026-05-20</td></tr>
-                  <tr><td style="padding:4px 8px;border:1px solid #e2e8f0">Ferritin</td><td style="padding:4px 8px;border:1px solid #e2e8f0">285</td><td style="padding:4px 8px;border:1px solid #e2e8f0">100-500 ng/mL</td><td style="padding:4px 8px;border:1px solid #e2e8f0">2026-03-15</td></tr>
-                  <tr><td style="padding:4px 8px;border:1px solid #e2e8f0">K⁺</td><td style="padding:4px 8px;border:1px solid #e2e8f0">4.8</td><td style="padding:4px 8px;border:1px solid #e2e8f0">3.5-5.0 mEq/L</td><td style="padding:4px 8px;border:1px solid #e2e8f0">2026-05-20</td></tr>
-                  <tr><td style="padding:4px 8px;border:1px solid #e2e8f0">Ca×P</td><td style="padding:4px 8px;border:1px solid #e2e8f0;color:#d97706;font-weight:700">52</td><td style="padding:4px 8px;border:1px solid #e2e8f0">&lt;55 mg²/dL²</td><td style="padding:4px 8px;border:1px solid #e2e8f0">2026-05-20</td></tr>
-                  <tr><td style="padding:4px 8px;border:1px solid #e2e8f0">Kt/V</td><td style="padding:4px 8px;border:1px solid #e2e8f0;color:#059669;font-weight:700">1.42</td><td style="padding:4px 8px;border:1px solid #e2e8f0">&gt;1.2</td><td style="padding:4px 8px;border:1px solid #e2e8f0">2026-05-20</td></tr>
+                  <tr v-for="item in (detailData?.labs || [])" :key="item.id">
+                    <td style="padding:4px 8px;border:1px solid #e2e8f0">{{ item.name }}</td>
+                    <td style="padding:4px 8px;border:1px solid #e2e8f0" :style="{ color: item.is_abnormal ? '#dc2626' : 'inherit', fontWeight: item.is_abnormal ? '700' : 'normal' }">
+                        {{ item.value }}
+                    </td>
+                    <td style="padding:4px 8px;border:1px solid #e2e8f0">{{ item.range }}</td>
+                    <td style="padding:4px 8px;border:1px solid #e2e8f0">{{ item.date }}</td>
+                  </tr>
+                  <tr v-if="!detailData?.labs || detailData.labs.length === 0">
+                    <td colspan="4" style="padding:8px;text-align:center;color:#64748b">無檢驗記錄</td>
+                  </tr>
                 </table>
             </div>
         </div>
@@ -28,7 +36,7 @@
 </template>
 
 <script setup>
-defineProps(['modelValue']);
+defineProps(['modelValue', 'patient', 'detailData']);
 defineEmits(['update:modelValue']);
 </script>
 

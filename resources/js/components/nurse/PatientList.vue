@@ -275,12 +275,12 @@
                                     { open: openDrawers.has(pt.bed) },
                                 ]"
                             >
-                                <span class="dbtn" @click.stop="emit('open-modal', 'basicInfo', pt)">🪪 基本資料</span>
-                                <span class="dbtn" @click.stop="emit('open-modal', 'orderSheet', pt)">📝 醫囑單</span>
-                                <span class="dbtn" @click.stop="emit('open-modal', 'vascular', pt)">🌿 血管通路</span>
-                                <span class="dbtn" @click.stop="emit('open-modal', 'anemia', pt)">🩸 貧血治療</span>
-                                <span class="dbtn" @click.stop="emit('open-modal', 'lab', pt)">🧪 檢驗記錄</span>
-                                <span class="dbtn" @click.stop="emit('open-modal', 'longterm', pt)">📋 長期醫囑</span>
+                                <span class="dbtn" @click.stop="openDetail('basicInfo', pt)">🪪 基本資料</span>
+                                <span class="dbtn" @click.stop="openDetail('orderSheet', pt)">📝 醫囑單</span>
+                                <span class="dbtn" @click.stop="openDetail('vascular', pt)">🌿 血管通路</span>
+                                <span class="dbtn" @click.stop="openDetail('anemia', pt)">🩸 貧血治療</span>
+                                <span class="dbtn" @click.stop="openDetail('lab', pt)">🧪 檢驗記錄</span>
+                                <span class="dbtn" @click.stop="openDetail('longterm', pt)">📋 長期醫囑</span>
                                 <span
                                     class="dbtn"
                                     style="
@@ -530,11 +530,15 @@ const filteredGroups = computed(() => {
 });
 
 const toggleDrawer = (bed) => {
-    if (openDrawers.value.has(bed)) {
-        openDrawers.value.delete(bed);
-    } else {
-        openDrawers.value.add(bed);
-    }
+    if (openDrawers.value.has(bed)) openDrawers.value.delete(bed);
+    else openDrawers.value.add(bed);
+};
+
+const openDetail = async (type, pt) => {
+    const data = await store.fetchPatientDetails(pt.mr, type);
+    console.log(`[Drawer] 開啟 ${type} 資料:`, data);
+    // 此處可連接到對應 Modal，若無則暫時 log
+    emit('open-modal', type, pt, data);
 };
 
 const startLongPress = (event, pt) => {

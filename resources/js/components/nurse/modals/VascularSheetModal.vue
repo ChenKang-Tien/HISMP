@@ -12,17 +12,24 @@
                     <button style="flex:1;padding:6px;border:2px solid #0f766e;border-radius:6px;background:#0f766e;color:white;font-size:11px;font-weight:700;cursor:pointer;">A 區</button>
                     <button style="flex:1;padding:6px;border:2px solid #e2e8f0;border-radius:6px;background:white;color:#64748b;font-size:11px;font-weight:700;cursor:pointer;">B 區</button>
                 </div>
-                <div id="vascular-A">
-                    <div style="font-size:11px;"><strong>種類：</strong>AVF｜<strong>位置：</strong>R't 右臂｜<strong>建立日期：</strong>2020-03-10</div>
-                    <div style="font-size:11px;margin-top:6px;"><strong>最近評估（2026-05-27）：</strong>正常，廔管震顫良好</div>
+                <div id="vascular-details" v-if="detailData">
+                    <div style="font-size:11px;">
+                        <strong>種類：</strong>{{ detailData.type }}｜
+                        <strong>位置：</strong>{{ detailData.site }}｜
+                        <strong>建立日期：</strong>{{ detailData.created_at }}
+                    </div>
+                    <div style="font-size:11px;margin-top:6px;">
+                        <strong>最近評估（{{ detailData.last_check_date }}）：</strong>{{ detailData.note }}
+                    </div>
                 </div>
+                <div v-else style="color:#64748b;font-size:11px;">暫無血管通路資料</div>
             </div>
         </div>
     </div>
 </template>
 
 <script setup>
-defineProps(['modelValue']);
+defineProps(['modelValue', 'patient', 'detailData']);
 defineEmits(['update:modelValue']);
 </script>
 

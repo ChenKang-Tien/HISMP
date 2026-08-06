@@ -8,19 +8,23 @@
             
             <div class="modal-body" style="font-size:12px;">
                 <button class="print-btn-inline" style="margin-bottom:10px;">🖨️ 列印</button>
-                <div style="font-size:11px;color:var(--slate-lt);margin-bottom:8px">透析頻率：3次/週（一三五）｜ 透析時數：4h</div>
+                <div style="font-size:11px;color:var(--slate-lt);margin-bottom:8px">
+                    {{ detailData?.frequency || '透析頻率：—' }} ｜ {{ detailData?.duration || '透析時數：—' }}
+                </div>
                 <table style="width:100%;border-collapse:collapse;font-size:11px;">
                   <tr style="background:#0f766e;color:white;">
                     <th style="padding:4px 8px;border:1px solid rgba(255,255,255,.2)">項目</th>
                     <th style="padding:4px 8px;border:1px solid rgba(255,255,255,.2)">內容</th>
                     <th style="padding:4px 8px;border:1px solid rgba(255,255,255,.2)">備注</th>
                   </tr>
-                  <tr><td style="padding:4px 8px;border:1px solid #e2e8f0">Dialyzer</td><td style="padding:4px 8px;border:1px solid #e2e8f0">FX80 Classix</td><td style="padding:4px 8px;border:1px solid #e2e8f0">每次更換</td></tr>
-                  <tr><td style="padding:4px 8px;border:1px solid #e2e8f0">BF</td><td style="padding:4px 8px;border:1px solid #e2e8f0">250 ml/min</td><td style="padding:4px 8px;border:1px solid #e2e8f0"></td></tr>
-                  <tr><td style="padding:4px 8px;border:1px solid #e2e8f0">DF</td><td style="padding:4px 8px;border:1px solid #e2e8f0">500 ml/min</td><td style="padding:4px 8px;border:1px solid #e2e8f0"></td></tr>
-                  <tr><td style="padding:4px 8px;border:1px solid #e2e8f0">Dialysate Ca</td><td style="padding:4px 8px;border:1px solid #e2e8f0">3.0 mEq/L</td><td style="padding:4px 8px;border:1px solid #e2e8f0"></td></tr>
-                  <tr><td style="padding:4px 8px;border:1px solid #e2e8f0">Heparin</td><td style="padding:4px 8px;border:1px solid #e2e8f0">Initial 2000u / Maintain 300u/hr</td><td style="padding:4px 8px;border:1px solid #e2e8f0"></td></tr>
-                  <tr><td style="padding:4px 8px;border:1px solid #e2e8f0">乾體重</td><td style="padding:4px 8px;border:1px solid #e2e8f0">59.5 kg</td><td style="padding:4px 8px;border:1px solid #e2e8f0">上次調整：2026-05-01</td></tr>
+                  <tr v-for="item in (detailData?.orders || [])" :key="item.id">
+                    <td style="padding:4px 8px;border:1px solid #e2e8f0">{{ item.name }}</td>
+                    <td style="padding:4px 8px;border:1px solid #e2e8f0">{{ item.content }}</td>
+                    <td style="padding:4px 8px;border:1px solid #e2e8f0">{{ item.note }}</td>
+                  </tr>
+                  <tr v-if="!detailData?.orders || detailData.orders.length === 0">
+                    <td colspan="3" style="padding:8px;text-align:center;color:#64748b">無醫囑記錄</td>
+                  </tr>
                 </table>
             </div>
         </div>
@@ -28,7 +32,7 @@
 </template>
 
 <script setup>
-defineProps(['modelValue']);
+defineProps(['modelValue', 'patient', 'detailData']);
 defineEmits(['update:modelValue']);
 </script>
 

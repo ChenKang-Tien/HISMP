@@ -35,7 +35,9 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import BaseModal from "./BaseModal.vue";
+import { useDialysisStore } from "@/store/useNurseStore";
 
+const store = useDialysisStore();
 const props = defineProps(['modelValue']);
 const emit = defineEmits(['update:modelValue', 'confirm']);
 
@@ -57,8 +59,15 @@ const calculatedRate = computed(() => {
     return 0;
 });
 
-const submit = () => {
-    emit('confirm', { ...ufData.value, rate: calculatedRate.value });
-    internalValue.value = false;
+const submit = async () => {
+    // 透過 Store 進行操作並自動備份日誌
+    const success = await store.updatePatientUfGoal(store.currentPatient.mr, {
+        uf_goal: ufData.value.target,
+        hours: ufData.value.hours,
+        note: ufData.value.note
+    });
+    if (success) {
+        internalValue.value = false;
+    }
 };
 </script>
