@@ -308,13 +308,14 @@ export const useDialysisStore = defineStore("dialysis", {
                 return false;
             }
         },
-        async reportIncident(mr, type) {
+        // 🟢 RESTful [POST] - 更新病患體重數據與自動留痕
+        async updatePatientWeights(mr, weightData) {
             try {
-                await api.post(`/patients/${mr}/incidents`, { type });
-                this.addNursingRecord(`[臨床事件] ${type} 已記錄。`);
+                await api.post(`/patients/${mr}/weights`, weightData);
+                this.addNursingRecord(`[體重校正] 透前: ${weightData.pre}kg, 透後: ${weightData.post}kg。備註: ${weightData.note || '無'}`);
                 return true;
             } catch (err) {
-                console.error("事件記錄失敗:", err);
+                console.error("體重更新失敗:", err);
                 return false;
             }
         },

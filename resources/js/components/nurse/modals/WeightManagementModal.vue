@@ -142,21 +142,28 @@ const closeModal = () => {
     emit("update:modelValue", false);
 };
 
-const handleSave = () => {
-    // 將格式化後的字串回填進大腦實體浮點數
-    store.preRawWeight = displayPre.value ? parseFloat(displayPre.value) : null;
-    store.postRawWeight = displayPost.value
-        ? parseFloat(displayPost.value)
-        : null;
+const handleSave = async () => {
+    const pre = displayPre.value ? parseFloat(displayPre.value) : null;
+    const post = displayPost.value ? parseFloat(displayPost.value) : null;
+    
+    // 透過 Store 進行 API 操作並觸發日誌備份
+    const success = await store.updatePatientWeights(store.currentPatient.mr, {
+        pre,
+        post,
+        note: '體重數據校正'
+    });
 
-    // 連鎖更新已扣體重大盤數據
-    if (store.preRawWeight) {
-        store.preAdjWeight = parseFloat(
-            (store.preRawWeight - store.deductionTotal).toFixed(2),
-        );
+    if (success) {
+        store.preRawWeight = pre;
+        store.postRawWeight = post;
+        // 連鎖更新已扣體重大盤數據
+        if (store.preRawWeight) {
+            store.preAdjWeight = parseFloat(
+                (store.preRawWeight - store.deductionTotal).toFixed(2),
+            );
+        }
+        closeModal();
     }
-
-    closeModal();
 };
 </script>
 
