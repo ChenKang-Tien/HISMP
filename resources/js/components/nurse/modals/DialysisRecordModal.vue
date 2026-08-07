@@ -19,14 +19,14 @@
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px">
                         <div>病患：{{ patient?.name }}（{{ patient?.mr }}）</div>
                         <div>日期：{{ selectedDate }}</div>
-                        <div>Dialyzer：FX80 Classix</div>
-                        <div>BF：250 ml/min</div>
-                        <div>DF：500 ml/min</div>
-                        <div>Ca：3.0 mEq/L</div>
-                        <div>透前體重：78.5 kg</div>
-                        <div>UF目標：3.50 kg</div>
-                        <div>On-Sign：楚心瑜 09:05</div>
-                        <div>Double Sign：王曉明 09:08</div>
+                        <div>Dialyzer：{{ detailData?.dialyzer || '—' }}</div>
+                        <div>BF：{{ detailData?.bf || '—' }} ml/min</div>
+                        <div>DF：{{ detailData?.df || '—' }} ml/min</div>
+                        <div>Ca：{{ detailData?.ca || '—' }} mEq/L</div>
+                        <div>透前體重：{{ detailData?.pre_weight || '—' }} kg</div>
+                        <div>UF目標：{{ detailData?.uf_goal || '—' }} kg</div>
+                        <div>On-Sign：{{ detailData?.on_sign_nurse || '—' }}</div>
+                        <div>Double Sign：{{ detailData?.double_sign_nurse || '—' }}</div>
                     </div>
                 </div>
             </div>
@@ -39,13 +39,20 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, watch } from "vue";
+import { useDialysisStore } from "@/store/useNurseStore";
 
-const props = defineProps(['modelValue', 'patient']);
+const props = defineProps(['modelValue', 'patient', 'detailData']);
 const emit = defineEmits(['update:modelValue']);
+const store = useDialysisStore();
 
 const close = () => emit('update:modelValue', false);
 const selectedDate = ref(new Date().toISOString().split('T')[0]);
+
+// 監聽日期變更，可擴充後端查詢
+watch(selectedDate, (newDate) => {
+    console.log(`[DialysisRecord] 查詢 ${newDate} 資料`);
+});
 </script>
 
 <style scoped>

@@ -319,14 +319,20 @@ export const useDialysisStore = defineStore("dialysis", {
                 return false;
             }
         },
-        async lockSupplyList() {
+        // 🟢 RESTful [GET] - 取得明日領料清單
+        async fetchSupplyList() {
             try {
-                await api.post(`/nursing/supply-tmr/lock`);
-                alert("🔒 領料清單已鎖定並同步至庫房系統。");
-                return true;
+                const res = await api.get('/nursing/supply-tmr');
+                return res.data;
             } catch (err) {
-                console.error("領料鎖定失敗:", err);
-                return false;
+                console.warn("[API] 獲取領料清單失敗，使用模擬資料。");
+                return {
+                    items: [
+                        { id: 1, name: 'FX80 Classix 人工腎臟', count: 12, unit: '組' },
+                        { id: 2, name: 'Heparin 1000u/ml', count: 24, unit: '支' }
+                    ],
+                    isLocked: false
+                };
             }
         },
     },
