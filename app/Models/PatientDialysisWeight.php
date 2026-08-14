@@ -18,7 +18,8 @@ class PatientDialysisWeight extends Model
         'doctor_id',
         'nurse_id',
         'nurse_date',
-        'status'
+        'status',
+        'post_weight' // 新增對應欄位
     ];
 
     public function patient() {

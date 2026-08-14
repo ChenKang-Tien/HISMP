@@ -56,10 +56,16 @@
                     style="margin-top: 15px"
                 >
                     <div class="fb-row">
-                        <span>目前套用總扣重明細合計：</span>
-                        <span class="font-700 text-teal"
-                            >-{{ store.deductionTotal.toFixed(1) }} kg</span
-                        >
+                        <span>透前已套用扣重：</span>
+                        <span class="font-700 text-teal">
+                            -{{ (store.preDeductionTotal || 0).toFixed(1) }} kg
+                        </span>
+                    </div>
+                    <div class="fb-row">
+                        <span>透後已套用扣重：</span>
+                        <span class="font-700 text-teal">
+                            -{{ (store.postDeductionTotal || 0).toFixed(1) }} kg
+                        </span>
                     </div>
                     <div
                         class="fb-row"
@@ -74,13 +80,16 @@
                             class="font-700 text-teal-dk"
                             style="font-size: 13px"
                         >
-                            {{
-                                (store.preRawWeight
-                                    ? store.preRawWeight - store.deductionTotal
-                                    : 0
-                                ).toFixed(2)
-                            }}
-                            kg
+                            {{ store.preAdjWeight?.toFixed(2) || '0.00' }} kg
+                        </span>
+                    </div>
+                    <div class="fb-row" style="margin-top: 5px;">
+                        <span>計算後今日透後淨體重：</span>
+                        <span
+                            class="font-700 text-teal-dk"
+                            style="font-size: 13px"
+                        >
+                            {{ store.postAdjWeight?.toFixed(2) || '0.00' }} kg
                         </span>
                     </div>
                 </div>
@@ -89,7 +98,7 @@
             <div class="modal-footer bg-teal-lt">
                 <button class="btn-v24-cancel" @click="closeModal">取消</button>
                 <button class="btn-v24-confirm bg-teal-dk" @click="handleSave">
-                    💾 具名校正寫入大腦
+                    儲存
                 </button>
             </div>
         </div>
@@ -112,12 +121,10 @@ watch(
     () => props.modelValue,
     (isOpen) => {
         if (isOpen) {
-            displayPre.value = store.preRawWeight
-                ? store.preRawWeight.toFixed(1)
-                : "";
-            displayPost.value = store.postRawWeight
-                ? store.postRawWeight.toFixed(1)
-                : "";
+            displayPre.value = (parseFloat(store.preRawWeight) || 0).toFixed(1);
+            displayPost.value = (parseFloat(store.postRawWeight) || 0).toFixed(
+                1,
+            );
         }
     },
 );
@@ -145,23 +152,33 @@ const closeModal = () => {
 const handleSave = async () => {
     const pre = displayPre.value ? parseFloat(displayPre.value) : null;
     const post = displayPost.value ? parseFloat(displayPost.value) : null;
-    
+
     // 透過 Store 進行 API 操作並觸發日誌備份
     const success = await store.updatePatientWeights(store.currentPatient.mr, {
         pre,
         post,
-        note: '體重數據校正'
+        note: "體重數據校正",
     });
 
     if (success) {
         store.preRawWeight = pre;
         store.postRawWeight = post;
         // 連鎖更新已扣體重大盤數據
-        if (store.preRawWeight) {
-            store.preAdjWeight = parseFloat(
-                (store.preRawWeight - store.deductionTotal).toFixed(2),
-            );
-        }
+        store.preAdjWeight = parseFloat(
+            (store.preRawWeight - store.preDeductionTotal).toFixed(2),
+        );
+        store.postAdjWeight = parseFloat(
+            (store.postRawWeight - store.postDeductionTotal).toFixed(2),
+        );
+        // 更新 UI 後手動同步到 currentPatient
+        store.currentPatient.weight_info = {
+            pre: pre,
+            dry: store.dryWeight,
+            pre_deduction: store.preDeductionTotal,
+            post_deduction: store.postDeductionTotal,
+            pre_items: store.preDeductions,
+            post_items: store.postDeductions,
+        };
         closeModal();
     }
 };

@@ -9,14 +9,14 @@
                 <label>選擇護理師：</label>
                 <select v-model="formData.nurse_id" class="form-input">
                     <option value="">請選擇護理師</option>
-                    <!-- 假設後端提供護理師列表 -->
+                    <option v-for="n in options.nurses" :key="n.id" :value="n.id">{{ n.name }}</option>
                 </select>
             </div>
             <div class="form-group">
                 <label>指定群組 (Group)：</label>
                 <select v-model="formData.group_id" class="form-input">
                     <option value="">請選擇群組</option>
-                    <!-- 對應 PatientList.vue 中的 group 結構 -->
+                    <option v-for="g in options.groups" :key="g.id" :value="g.id">{{ g.name }}</option>
                 </select>
             </div>
             <div class="group-preview" v-if="formData.group_id">
@@ -34,14 +34,16 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import BaseModal from './BaseModal.vue';
+import { useDialysisStore } from "@/store/useNurseStore";
 
 const props = defineProps({
     modelValue: Boolean
 });
 
 const emit = defineEmits(['update:modelValue', 'confirm']);
+const store = useDialysisStore();
 
 const internalValue = computed({
     get: () => props.modelValue,
@@ -55,9 +57,17 @@ const formData = reactive({
     note: ''
 });
 
-const submit = () => {
-    emit('confirm', { ...formData });
-    internalValue.value = false;
+const options = ref({ nurses: [], groups: [] });
+
+onMounted(async () => {
+    options.value = await store.fetchShiftOptions();
+});
+
+const submit = async () => {
+    const success = await store.saveShift(formData);
+    if (success) {
+        internalValue.value = false;
+    }
 };
 </script>
 

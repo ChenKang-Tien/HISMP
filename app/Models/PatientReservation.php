@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class PatientReservation extends Model
 {
-    
+
     use HasFactory;
     protected $fillable = [
         'id',
+        'hospital_id',
         'patient_id',
         'date',
         'status',

@@ -5,11 +5,15 @@
             <button class="modal-x" @click="$emit('update:modelValue', false)">✕</button>
             <div style="font-size:11px;color:var(--slate);margin-bottom:10px;">請選擇突發事件類型：</div>
             <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
-                <div style="border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;background:white;" onmouseover="this.style.background='var(--teal-lt)'" onmouseout="this.style.background='white'">
-                    <span style="font-size:18px;">🛏️</span>
+                <div v-for="evt in events" :key="evt.type" 
+                     @click="submit(evt.type)"
+                     style="border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;background:white;" 
+                     onmouseover="this.style.background='var(--teal-lt)'" 
+                     onmouseout="this.style.background='white'">
+                    <span style="font-size:18px;">{{ evt.icon }}</span>
                     <div>
-                        <div style="font-weight:700;font-size:12px;">換床</div>
-                        <div style="font-size:10px;color:var(--slate-lt)">病患移至其他透析床位，IoT 數據重新綁定</div>
+                        <div style="font-weight:700;font-size:12px;">{{ evt.label }}</div>
+                        <div style="font-size:10px;color:var(--slate-lt)">{{ evt.desc }}</div>
                     </div>
                 </div>
             </div>
@@ -18,8 +22,24 @@
 </template>
 
 <script setup>
-defineProps(['modelValue']);
-defineEmits(['update:modelValue']);
+import { useDialysisStore } from "@/store/useNurseStore";
+
+const props = defineProps(['modelValue', 'patient']);
+const emit = defineEmits(['update:modelValue']);
+const store = useDialysisStore();
+
+const events = [
+    { type: 'BED_CHANGE', icon: '🛏️', label: '換床', desc: '病患移至其他透析床位，IoT 數據重新綁定' },
+    { type: 'FALL', icon: '⚠️', label: '跌倒', desc: '病患發生跌倒事件，需通報醫療事故' },
+    { type: 'BLOOD_LEAK', icon: '🩸', label: '漏血', desc: '發生滲漏血情況，已即時處理' }
+];
+
+const submit = async (type) => {
+    const success = await store.reportIncident(store.currentPatient.mr, type);
+    if (success) {
+        emit('update:modelValue', false);
+    }
+};
 </script>
 
 <style scoped>

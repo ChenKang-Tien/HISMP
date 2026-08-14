@@ -95,7 +95,10 @@
                         <div class="w-val-text text-slate font-700">
                             {{
                                 store.postRawWeight
-                                    ? store.postRawWeight + " kg"
+                                    ? (
+                                          store.postRawWeight -
+                                          store.postDeductionTotal
+                                      ).toFixed(1) + " kg"
                                     : "—"
                             }}
                         </div>
@@ -107,7 +110,7 @@
 
         <!-- 扣重池明細 -->
         <div class="fh fh-flex">
-            <div class="w-detail-title">扣重池明細</div>
+            <div class="w-detail-title">扣重池明細 (透前)</div>
             <span
                 class="edit-icon-btn"
                 @click="triggerDeductionManage"
@@ -117,17 +120,43 @@
         </div>
         <div class="fc-deduction-list">
             <div
-                v-for="d in store.deductions"
+                v-for="d in store.preDeductions"
                 :key="d.id"
                 class="deduct-item-row"
             >
                 <span>{{ d.name }}</span>
-                <span class="text-teal">-{{ d.weight.toFixed(1) }} kg</span>
+                <span :class="d.weight >= 0 ? 'text-teal' : 'text-amber'">
+                    {{ d.weight >= 0 ? "-" : "+"
+                    }}{{ Math.abs(d.weight).toFixed(1) }} kg
+                </span>
             </div>
             <div class="deduct-total-row">
                 <span class="text-slate-lt">合計</span>
                 <span class="text-teal font-700"
-                    >-{{ store.deductionTotal.toFixed(1) }} kg</span
+                    >{{ store.preDeductionTotal.toFixed(1) }} kg</span
+                >
+            </div>
+        </div>
+
+        <div class="w-detail-title" style="margin-top: 8px">
+            扣重池明細 (透後)
+        </div>
+        <div class="fc-deduction-list">
+            <div
+                v-for="d in store.postDeductions"
+                :key="d.id"
+                class="deduct-item-row"
+            >
+                <span>{{ d.name }}</span>
+                <span :class="d.weight >= 0 ? 'text-teal' : 'text-amber'">
+                    {{ d.weight >= 0 ? "-" : "+"
+                    }}{{ Math.abs(d.weight).toFixed(1) }} kg
+                </span>
+            </div>
+            <div class="deduct-total-row">
+                <span class="text-slate-lt">合計</span>
+                <span class="text-teal font-700"
+                    >{{ store.postDeductionTotal.toFixed(1) }} kg</span
                 >
             </div>
         </div>
@@ -207,7 +236,6 @@ const emit = defineEmits([
     "open-weight-modal",
     "open-uf-modal",
 ]);
-
 // 判定 HCT 追加觀測是否開啟
 const isAtUnlocked = computed(() => {
     if (!store.hctTW) return false;

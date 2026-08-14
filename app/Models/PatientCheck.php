@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
+use App\Models\PatientReservation;
+use App\Models\Patient;
 
 class PatientCheck extends Model
 {
@@ -33,27 +35,20 @@ class PatientCheck extends Model
         // 填上所有欄位
     ];
 
-    public function patient_reservation() {
-        return $this->belongsTo('App\Models\PatientReservation');
+    public function patient()
+    {
+        return $this->hasOneThrough(
+            Patient::class,
+            PatientReservation::class,
+            'id', // PatientReservation foreign key
+            'id', // Patient local key
+            'patient_reservation_id', // PatientCheck local key
+            'patient_id' // PatientReservation local key
+        );
     }
 
-    public function prepare_nurse() {
-        return $this->belongsTo('App\Models\User');
-    }
-
-    public function check_nurse() {
-        return $this->belongsTo('App\Models\User');
-    }
-
-    // public function care_end_nurse() {
-    //     return $this->belongsTo('App\Models\User');
-    // }
-
-    // public function care_nurse() {
-    //     return $this->belongsTo('App\Models\User');
-    // }
-
-    public function doctor() {
-        return $this->belongsTo('App\Models\User');
+    public function patient_reservation()
+    {
+        return $this->belongsTo(PatientReservation::class, 'patient_reservation_id');
     }
 }

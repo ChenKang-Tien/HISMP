@@ -181,13 +181,13 @@
                                 {{ pt.statusText }}
                             </div>
 
-                            <!-- 補回原稿未測 HCT 代替警告條 (薛玉鳳專用) -->
-                            <div
-                                class="alert-item fallback"
-                                v-if="pt.bed === '01'"
-                            >
-                                <i class="ti ti-alert-triangle"></i>⚠️ 本週未測
-                                HCT，以 LW 值（32.5%）代替
+                            <!-- 體重資訊 -->
+                            <div class="alert-item fallback" v-if="pt.weight_info">
+                                <i class="ti ti-scale"></i>
+                                乾體重: {{ pt.weight_info.dry }}kg / 透前: {{ pt.weight_info.pre }}kg
+                                <span v-if="pt.weight_info.deduction !== 0" style="color:var(--red);">
+                                    (扣重: {{ pt.weight_info.deduction }}kg)
+                                </span>
                             </div>
 
                             <!-- 實驗室危急回報通知 (DL-126) -->
@@ -208,21 +208,13 @@
                                         class="vit-v"
                                         :class="{ red: pt.isCrit }"
                                     >
-                                        {{
-                                            pt.bed === "01" && store.vsignFilled
-                                                ? store.vsignData.bp
-                                                : pt.vitals.bp
-                                        }}
+                                        {{ pt.vitals?.bp || '—' }}
                                     </div>
                                 </div>
                                 <div class="vit">
                                     <div class="vit-l">脈搏</div>
                                     <div class="vit-v">
-                                        {{
-                                            pt.bed === "01" && store.vsignFilled
-                                                ? store.vsignData.pr
-                                                : pt.vitals.pr
-                                        }}
+                                        {{ pt.vitals?.pr || '—' }}
                                     </div>
                                 </div>
                                 <div class="vit">
@@ -231,16 +223,12 @@
                                         class="vit-v"
                                         :class="{ warn: pt.bed === '01' }"
                                     >
-                                        {{
-                                            pt.bed === "01" && store.vsignFilled
-                                                ? store.vsignData.fs
-                                                : pt.vitals.fs
-                                        }}
+                                        {{ pt.vitals?.fs || '—' }}
                                     </div>
                                 </div>
                                 <div class="vit">
                                     <div class="vit-l">血流速</div>
-                                    <div class="vit-v">{{ pt.vitals.qb }}</div>
+                                    <div class="vit-v">{{ pt.vitals?.qb || '—' }}</div>
                                 </div>
                             </div>
 

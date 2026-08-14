@@ -20,8 +20,15 @@
                     <th style="padding:4px 8px;border:1px solid rgba(255,255,255,.2)">頻率</th>
                     <th style="padding:4px 8px;border:1px solid rgba(255,255,255,.2)">開始日</th>
                   </tr>
-                  <tr><td style="padding:4px 8px;border:1px solid #e2e8f0">Amtrel</td><td style="padding:4px 8px;border:1px solid #e2e8f0">5mg</td><td style="padding:4px 8px;border:1px solid #e2e8f0">QD</td><td style="padding:4px 8px;border:1px solid #e2e8f0">2024-01-10</td></tr>
-                  <tr><td style="padding:4px 8px;border:1px solid #e2e8f0">Medorin</td><td style="padding:4px 8px;border:1px solid #e2e8f0">#3顆</td><td style="padding:4px 8px;border:1px solid #e2e8f0">透析前</td><td style="padding:4px 8px;border:1px solid #e2e8f0">2023-06-15</td></tr>
+                  <tr v-for="order in (detailData?.longterm_orders || [])" :key="order.id">
+                    <td style="padding:4px 8px;border:1px solid #e2e8f0">{{ order.name }}</td>
+                    <td style="padding:4px 8px;border:1px solid #e2e8f0">{{ order.dosage }}</td>
+                    <td style="padding:4px 8px;border:1px solid #e2e8f0">{{ order.frequency }}</td>
+                    <td style="padding:4px 8px;border:1px solid #e2e8f0">{{ order.start_date }}</td>
+                  </tr>
+                  <tr v-if="!detailData?.longterm_orders || detailData.longterm_orders.length === 0">
+                    <td colspan="4" style="padding:8px;text-align:center;color:#64748b">無長期醫囑記錄</td>
+                  </tr>
                 </table>
             </div>
         </div>
@@ -29,8 +36,10 @@
 </template>
 
 <script setup>
-defineProps(['modelValue']);
+import { useDialysisStore } from "@/store/useNurseStore";
+defineProps(['modelValue', 'patient', 'detailData']);
 defineEmits(['update:modelValue']);
+const store = useDialysisStore();
 </script>
 
 <style scoped>

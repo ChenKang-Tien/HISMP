@@ -30,6 +30,8 @@ import { ref, watch } from "vue";
 const props = defineProps({
     modelValue: Boolean,
     initialValue: [String, Number],
+    patient: Object,
+    detailData: Object
 });
 const emit = defineEmits(["update:modelValue", "confirm"]);
 
@@ -41,9 +43,15 @@ watch(
     },
 );
 
+import { useDialysisStore } from "@/store/useNurseStore";
+const store = useDialysisStore();
+
 const close = () => emit("update:modelValue", false);
-const submit = () => {
-    emit("confirm", val.value);
-    close();
+const submit = async () => {
+    const success = await store.addNursingRecord(`[HCT記錄] 設定 HCT 為 ${val.value}%`);
+    if(success) {
+        emit("confirm", val.value);
+        close();
+    }
 };
 </script>

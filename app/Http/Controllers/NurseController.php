@@ -57,8 +57,13 @@ class NurseController extends Controller
     public function deleteWeight($id)
     {
         $item = WeightAdjustItem::findOrFail($id);
+        
+        // 清理所有引用此 item_id 的扣重記錄 (防止同步時觸發驗證錯誤)
+        \App\Models\PatientBeforeAdjustWeight::where('item_id', $id)->delete();
+        \App\Models\PatientAfterAdjustWeight::where('item_id', $id)->delete();
+        
         $item->delete();
-        return response()->json(['message' => 'Deleted successfully']);
+        return response()->json(['message' => 'Deleted successfully and related records cleared']);
     }
 
     // ==========================================
