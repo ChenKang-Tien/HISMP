@@ -24,7 +24,7 @@ class PatientController extends Controller
     public function index(Request $request)
     {
         $today = date('Y-m-d');
-        
+
         $patientChecks = PatientCheck::with([
             'patient',
             'patient_reservation.machine_bed.bed'
@@ -70,7 +70,7 @@ class PatientController extends Controller
                     ]]
                 ]
             ];
-            
+
             return response()->json([
                 'success' => true,
                 'active_groups' => $mockData[$shift] ?? $mockData['noon'],
@@ -125,35 +125,34 @@ class PatientController extends Controller
         foreach ($patientChecks as $check) {
             $p = $check->patient;
             if (!$p) continue;
-            
+
             // 整理體重資訊
             $dryWeight = $weightMap->get($p->id)?->dry_weight ?? 0;
             $preWeight = $check->measure_weight_before ?? 0;
             $adjusts = $adjustWeights->get($check->id) ?? collect();
-            
+
             // 整理詳細扣重項目
             $deductionItems = $adjusts->map(function ($adj) {
                 return [
                     'id' => $adj->id,
                     'name' => $adj->item->item ?? '未知項目',
                     'weight' => $adj->weight,
-                    'is_add' => (bool)($adj->way_add ?? 0) // 1 = 加, 0 = 減
                 ];
             })->values();
 
             $deduction = $adjusts->sum(function($adj) {
-                return ($adj->way_add ?? 0) ? $adj->weight : -$adj->weight;
+                return $adj->weight;
             });
 
             $res = $check->patient_reservation;
             $bed = $res->machine_bed->bed ?? null;
             $assignment = $careAssignments->get($check->id);
             $nurseName = $assignment && $assignment->nurse ? $assignment->nurse->name : '未分組';
-            
+
             if (!isset($groups[$nurseName])) {
                 $groups[$nurseName] = ['color' => '#0f766e', 'patients' => []];
             }
-            
+
             $groups[$nurseName]['patients'][] = [
                 'id' => $check->id,
                 'bed' => $bed->bed_no ?? '?',
@@ -209,10 +208,10 @@ class PatientController extends Controller
         // 撈取最新體重資訊
         $dialysisWeight = \App\Models\PatientDialysisWeight::where('patient_id', $patient->id)
             ->latest('date')->first();
-        
+
         $preAdjusts = $check ? \App\Models\PatientBeforeAdjustWeight::where('patient_check_id', $check->id)->get() : collect();
         $postAdjusts = $check ? \App\Models\PatientAfterAdjustWeight::where('patient_check_id', $check->id)->get() : collect();
-        
+
         $formatItems = function($adjusts) {
             return $adjusts->map(function ($adj) {
                 return [
@@ -220,7 +219,7 @@ class PatientController extends Controller
                     'item_id' => $adj->item_id,
                     'name' => $adj->item->item ?? '未知項目',
                     // way_add: 1 為加重(負值)，0 為減重(正值)
-                    'weight' => $adj->way_add ? -$adj->weight : $adj->weight,
+                    'weight' => $adj->weight,
                 ];
             })->values();
         };

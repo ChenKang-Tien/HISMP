@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
 class NursingActionController extends Controller
@@ -47,10 +48,13 @@ class NursingActionController extends Controller
         \Illuminate\Support\Facades\Log::info('WeightAdjustments Payload Received:', ['mr' => $mr, 'data' => $request->all()]);
 
         $validated = $request->validate([
-            'items' => 'present|array', // 改為 present 允許空陣列
+            'items' => 'present|array',
             'items.*.item_id' => 'required',
             'items.*.weight' => 'required|numeric',
+            'items.*.category' => 'required|in:pre,post',
         ]);
+
+        \Illuminate\Support\Facades\Log::info('WeightAdjustments Validated Data:', ['data' => $validated]);
 
         $patient = \App\Models\Patient::where('medical_record_no', $mr)->first();
         if (!$patient) return response()->json(['success' => false], 404);
@@ -67,22 +71,29 @@ class NursingActionController extends Controller
             // 如果有項目才新增，沒有項目則保持全刪除狀態
             if (!empty($validated['items'])) {
                 foreach ($validated['items'] as $item) {
-                    $adjustClass = ($item['category'] ?? 'pre') === 'post' 
-                        ? \App\Models\PatientAfterAdjustWeight::class 
+                    $adjustClass = ($item['category'] ?? 'pre') == 'post'
+                        ? \App\Models\PatientAfterAdjustWeight::class
                         : \App\Models\PatientBeforeAdjustWeight::class;
 
                     $adjustClass::create([
                         'patient_check_id' => $check->id,
                         'item_id' => $item['item_id'],
-                        'weight' => $item['weight'], // 不再取 abs，直接儲存原始正負值
-                        'way_add' => ($item['weight'] < 0) ? 1 : 0, 
-                        'nurse_id' => 1
+                        // 透後調整通常為「加回」或「扣除」，這裡確保正負號符合業務邏輯
+                        // 若 category 為 post，且原本是扣重(正值)，可能需要反轉符號
+                        'weight' => $item['weight'],
+                        'way_add' => 0,
+                        'nurse_id' => Auth::user()->id
                     ]);
                 }
             }
         }
 
-        return response()->json(['success' => true, 'message' => '扣重項目已更新。'], 200);
+        // 回傳處理過的資料供前端 debug
+        return response()->json([
+            'success' => true,
+            'message' => '扣重項目已更新。',
+            'debug_received' => $validated['items'] // 將驗證後的資料回傳
+        ], 200);
     }
 
     /**

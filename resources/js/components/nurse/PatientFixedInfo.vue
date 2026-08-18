@@ -94,11 +94,8 @@
                     <div>
                         <div class="w-val-text text-slate font-700">
                             {{
-                                store.postRawWeight
-                                    ? (
-                                          store.postRawWeight -
-                                          store.postDeductionTotal
-                                      ).toFixed(1) + " kg"
+                                store.postAdjWeight
+                                    ? store.postAdjWeight + " kg"
                                     : "—"
                             }}
                         </div>
@@ -126,7 +123,7 @@
             >
                 <span>{{ d.name }}</span>
                 <span :class="d.weight >= 0 ? 'text-teal' : 'text-amber'">
-                    {{ d.weight >= 0 ? "-" : "+"
+                    {{ d.weight >= 0 ? "+" : "-"
                     }}{{ Math.abs(d.weight).toFixed(1) }} kg
                 </span>
             </div>
@@ -149,7 +146,7 @@
             >
                 <span>{{ d.name }}</span>
                 <span :class="d.weight >= 0 ? 'text-teal' : 'text-amber'">
-                    {{ d.weight >= 0 ? "-" : "+"
+                    {{ d.weight >= 0 ? "+" : "-"
                     }}{{ Math.abs(d.weight).toFixed(1) }} kg
                 </span>
             </div>

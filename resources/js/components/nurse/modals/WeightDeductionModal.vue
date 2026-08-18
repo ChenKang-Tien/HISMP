@@ -29,6 +29,14 @@
                 現行套用扣重膠囊 ({{
                     targetCategory === "pre" ? "透前" : "透後"
                 }})：
+                <button 
+                    v-if="targetCategory === 'post'" 
+                    class="v24-btn-add" 
+                    style="margin-left: 10px; padding: 2px 6px; font-size: 10px;"
+                    @click="confirmCopyPreItems"
+                >
+                    <i class="ti ti-copy"></i> 帶入透前項目
+                </button>
             </div>
             <div class="v24-pool-display">
                 <div v-if="!currentDeductions.length" class="v24-empty-text">
@@ -42,7 +50,7 @@
                     >
                         <span class="pill-name">{{ d.name }}</span>
                         <span class="pill-weight"
-                            >{{ d.weight > 0 ? '-' : '' }}{{ Math.abs(d.weight).toFixed(1) }} kg</span
+                            >{{ Number(d.weight) >= 0 ? '+' : '' }}{{ Number(d.weight).toFixed(1) }} kg</span
                         >
                         <button
                             class="pill-remove"
@@ -92,9 +100,11 @@
             <div class="v24-total-text">
                 總扣重：<span class="font-bold"
                     >{{
-                        ((targetCategory === "pre"
-                            ? store.preDeductionTotal
-                            : store.postDeductionTotal) || 0).toFixed(1)
+                        (
+                            (targetCategory === "pre"
+                                ? store.preDeductionTotal
+                                : store.postDeductionTotal) || 0
+                        ).toFixed(1)
                     }}
                     kg</span
                 >
@@ -135,8 +145,6 @@ const reloadData = async () => {
     try {
         const res = await api.get("/weight-adjust-items");
         weightAdjustItems.value = res.data;
-        // 觸發 Store 資料重新整理，假設有 fetchWeight 或 reload 方法，若無則透過重新掛載
-        // 這裡確保 UI 狀態與最新後端同步
     } catch (e) {
         console.error("無法載入項目列表");
     }
@@ -156,22 +164,28 @@ const handleWeightInput = (e) => {
 
 const addItem = async () => {
     if (!selectedItem.value || !newItemWeightRaw.value) return;
+    
+    // 強制明確抓取當前的類別
+    const currentCat = targetCategory.value;
+    
     const item = {
         id: Date.now(),
         item_id: selectedItem.value.id,
         name: selectedItem.value.item,
         weight: parseFloat(newItemWeightRaw.value),
+        category: currentCat
     };
 
-    if (targetCategory.value === "pre") {
+    console.log("Adding item to category:", currentCat, item);
+
+    if (currentCat === "pre") {
         store.preDeductions.push(item);
     } else {
         store.postDeductions.push(item);
     }
 
     await store.syncWeightAdjustments(store.currentPatient.mr);
-    
-    // 強制重新整理
+
     store.calculateWeights();
     await reloadData();
 
@@ -179,23 +193,37 @@ const addItem = async () => {
     selectedItem.value = "";
 };
 
-const removeItem = async (id) => {
-    // 1. 先複製狀態，準備發送給 API (過濾掉要刪除的 id)
-    let newDeductions = (targetCategory.value === "pre" 
-        ? [...store.preDeductions] 
-        : [...store.postDeductions]).filter((d) => d.id !== id);
+const confirmCopyPreItems = async () => {
+    if (!confirm("確定要將透前調整項目複製到透後嗎？此操作將覆蓋現有透後項目並立即儲存。")) return;
+    await copyPreItems();
+};
 
-    // 2. 將修改後的完整清單送往後端
-    // 這裡我們直接傳送過濾後的結果給 API，確保後端接收到的就是刪除後的清單
-    if (targetCategory.value === "pre") {
+const copyPreItems = async () => {
+    store.postDeductions = store.preDeductions.map(d => ({
+        ...d,
+        id: Date.now() + Math.random(),
+        category: 'post'
+    }));
+    await store.syncWeightAdjustments(store.currentPatient.mr);
+    store.calculateWeights();
+};
+
+const removeItem = async (id) => {
+    const currentCat = targetCategory.value;
+    let newDeductions = (
+        currentCat === "pre"
+            ? [...store.preDeductions]
+            : [...store.postDeductions]
+    ).filter((d) => d.id !== id);
+
+    if (currentCat === "pre") {
         store.preDeductions = newDeductions;
     } else {
         store.postDeductions = newDeductions;
     }
-    
+
     await store.syncWeightAdjustments(store.currentPatient.mr);
-    
-    // 3. 強制計算並刷新
+
     store.calculateWeights();
     await reloadData();
 };

@@ -40,14 +40,19 @@
                         <label class="font-700 text-slate"
                             >今日透後原始體重 (未扣 kg)</label
                         >
-                        <input
-                            type="text"
-                            inputmode="numeric"
-                            v-model="displayPost"
-                            @input="handlePostInput"
-                            placeholder="尚未量測可留空"
-                            class="v24-input focus-teal"
-                        />
+                        <div style="display:flex; gap: 4px; align-items: center;">
+                            <input
+                                type="text"
+                                inputmode="numeric"
+                                v-model="displayPost"
+                                @input="handlePostInput"
+                                placeholder="尚未量測可留空"
+                                class="v24-input focus-teal"
+                            />
+                            <button class="btn-v24-cancel" @click="copyPreToPost" title="帶入透前調整項目">
+                                <i class="ti ti-copy"></i> 複製透前
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -139,6 +144,16 @@ const formatSmartDecimal = (val) => {
 
 const handlePreInput = (e) => {
     displayPre.value = formatSmartDecimal(e.target.value);
+};
+
+const copyPreToPost = () => {
+    // 將透前調整項目複製到透後
+    store.postDeductions = store.preDeductions.map(d => ({
+        ...d,
+        category: 'post',
+        id: Date.now() + Math.random() // 確保 ID 唯一
+    }));
+    store.calculateWeights();
 };
 
 const handlePostInput = (e) => {
