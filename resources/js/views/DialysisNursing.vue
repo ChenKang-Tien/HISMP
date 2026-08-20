@@ -116,10 +116,16 @@
                     </div>
                 </div>
                 <div class="r-hdr-actions">
-                    <button class="print-btn" @click="activeModals.printLabel = true">
+                    <button
+                        class="print-btn"
+                        @click="activeModals.printLabel = true"
+                    >
                         <i class="ti ti-printer"></i>📄 列印病患聯絡溝通標籤
                     </button>
-                    <button class="incident-btn" @click="activeModals.incident = true">
+                    <button
+                        class="incident-btn"
+                        @click="activeModals.incident = true"
+                    >
                         <i class="ti ti-bolt"></i>⚡ 臨床突發事件
                     </button>
                     <button
@@ -187,8 +193,14 @@
 
                     <div class="tab-content">
                         <TabOnSign v-if="store.activeTab === 0" key="on-sign" />
-                        <TabMonitoring v-if="store.activeTab === 1" key="monitoring" />
-                        <TabOffSign v-if="store.activeTab === 2" key="off-sign" />
+                        <TabMonitoring
+                            v-if="store.activeTab === 1"
+                            key="monitoring"
+                        />
+                        <TabOffSign
+                            v-if="store.activeTab === 2"
+                            key="off-sign"
+                        />
                     </div>
                 </div>
             </div>
@@ -269,12 +281,27 @@
         </div>
     </div>
 
-    <BasicInfoModal v-model="activeModals.basicInfo" :patient="modalTargetPatient" />
-    <OrderSheetModal v-model="activeModals.orderSheet" :patient="modalTargetPatient" />
-    <VascularSheetModal v-model="activeModals.vascular" :patient="modalTargetPatient" />
-    <AnemiaSheetModal v-model="activeModals.anemia" :patient="modalTargetPatient" />
+    <BasicInfoModal
+        v-model="activeModals.basicInfo"
+        :patient="modalTargetPatient"
+    />
+    <OrderSheetModal
+        v-model="activeModals.orderSheet"
+        :patient="modalTargetPatient"
+    />
+    <VascularSheetModal
+        v-model="activeModals.vascular"
+        :patient="modalTargetPatient"
+    />
+    <AnemiaSheetModal
+        v-model="activeModals.anemia"
+        :patient="modalTargetPatient"
+    />
     <LabSheetModal v-model="activeModals.lab" :patient="modalTargetPatient" />
-    <LongtermOrderModal v-model="activeModals.longterm" :patient="modalTargetPatient" />
+    <LongtermOrderModal
+        v-model="activeModals.longterm"
+        :patient="modalTargetPatient"
+    />
 
     <AbsenceLeaveModal
         v-model="activeModals.absence"
@@ -309,10 +336,23 @@
 
     <UfManagementModal v-model="activeModals.uf" />
 
-    <ExtraMeasurementModal v-model="activeModals.extra" @confirm="handleExtraGridRowSubmit" />
-    <IncidentModal v-model="activeModals.incident" :patient="modalTargetPatient" @confirm="handleIncidentSubmit" />
-    <PrintLabelModal v-model="activeModals.printLabel" :patient="modalTargetPatient" />
-    <SupplyTmrModal v-model="activeModals.supplyTmr" @confirm="handleSupplyLock" />
+    <ExtraMeasurementModal
+        v-model="activeModals.extra"
+        @confirm="handleExtraGridRowSubmit"
+    />
+    <IncidentModal
+        v-model="activeModals.incident"
+        :patient="modalTargetPatient"
+        @confirm="handleIncidentSubmit"
+    />
+    <PrintLabelModal
+        v-model="activeModals.printLabel"
+        :patient="modalTargetPatient"
+    />
+    <SupplyTmrModal
+        v-model="activeModals.supplyTmr"
+        @confirm="handleSupplyLock"
+    />
 
     <DialysisRecordModal
         v-model="activeModals.dialysisRecord"
@@ -384,12 +424,13 @@ const activeModals = reactive({
 const modalTargetPatient = ref(null);
 
 const handleOpenModal = (type, pt = null) => {
-    console.log("handleOpenModal");
-
+    console.log("DialysisNursing: handleOpenModal triggered with type:", type);
+    console.log("activeModals status before:", JSON.stringify(activeModals));
+    console.log("test");
     activeModals[type] = true;
     if (pt) modalTargetPatient.value = pt;
 
-    console.log(activeModals.dialysisRecord);
+    console.log("activeModals status after:", JSON.stringify(activeModals));
 };
 
 // 視窗大小即時監測
@@ -438,8 +479,12 @@ const handleAbsenceSubmit = async (formData) => {
 };
 
 // 🟢 事件 3：通用護理記錄持久化，連動後端 RESTful [POST] 節點
-const handleNursingRecordSubmit = (contentText) => {
-    store.addNursingRecord(contentText);
+const handleNursingRecordSubmit = async (formData) => {
+    console.log(
+        "DialysisNursing: handleNursingRecordSubmit called with:",
+        formData,
+    );
+    await store.addNursingRecord(formData.content, formData.time);
 };
 
 const handleHctSubmit = (val) => {
@@ -474,18 +519,24 @@ const handleSupplyLock = async () => {
 
 // 🟢 醫療安全防線：點擊上針 On-Sign 簽章大鈕 (對接 DL-128 血糖防漏鎖)
 const savePreVitals = async () => {
+    // 從 store.vsignData.bp (字串格式 "120/80") 拆解為 sys 與 dia
+    const bpParts = (store.vsignData.bp || "").toString().split("/");
+    const sys = bpParts[0] ? parseInt(bpParts[0]) : null;
+    const dia = bpParts[1] ? parseInt(bpParts[1]) : null;
+
     // 包裹當前生理徵象數值與血糖醫囑檢驗
     const payload = {
         has_fs_order: store.currentPatient.hasFSOrder,
         fs: store.vsignData.fs,
-        bp: store.vsignData.bp,
+        sys: sys,
+        dia: dia,
         pr: store.vsignData.pr,
     };
 
     try {
         // 調用大腦，傳送給 Laravel 進行臨床審查
         const res = await axios.post(
-            `/api/v1/patients/${store.currentPatient.mr}/vitals`,
+            `/api/v1/dialysis-checks/${store.currentPatient.id}/vitals`,
             payload,
         );
         store.mainSigned = true;

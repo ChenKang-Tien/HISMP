@@ -153,11 +153,28 @@ export const useDialysisStore = defineStore("dialysis", {
         },
         async selectPatient(patient) {
             this.currentPatient = patient;
+            this.nursingRecords = []; // 清空舊記錄
             try {
-                const res = await api.get(
-                    `/patients/${patient.mr}/dialysis-cases/current`,
-                );
+                // 1. 取得體重與透析基礎資訊
+                const res = await api.get(`/dialysis-checks/${patient.id}`);
                 const info = res.data?.weight_info || {};
+                
+                // 更新 store.vsignData
+                if (res.data.vitals) {
+                    this.vsignData = {
+                        sys: res.data.vitals.sys || "",
+                        dia: res.data.vitals.dia || "",
+                        pr: res.data.vitals.pr || "—",
+                        rr: res.data.vitals.rr || "—",
+                        temp: res.data.vitals.temp || "—",
+                        fs: res.data.vitals.fs || "—",
+                    };
+                    this.vsignFilled = res.data.vitals_filled;
+                }
+
+                // 同步更新病患醫囑狀態
+                this.currentPatient.hasFSOrder = res.data.hasFSOrder || false;
+                
                 this.preRawWeight = parseFloat(info.pre_raw_weight || 0);
                 this.postRawWeight = parseFloat(info.post_raw_weight || 0);
                 this.dryWeight = parseFloat(info.dry_weight || 0);
@@ -167,14 +184,20 @@ export const useDialysisStore = defineStore("dialysis", {
                 this.postDeductions = Array.isArray(info.post_deductions)
                     ? info.post_deductions.map(d => ({ ...d, category: 'post' }))
                     : [];
+                
+                // 2. 獲取該次透析的護理記錄
+                const recRes = await api.get(`/dialysis-checks/${patient.id}/nursing-records`);
+                this.nursingRecords = recRes.data.records || [];
+                
                 this.calculateWeights();
             } catch (err) {
+                console.error("🔴 [Patient Load Error]:", err);
                 this.preDeductions = [];
                 this.postDeductions = [];
                 this.calculateWeights();
             }
         },
-        async syncWeightAdjustments(mr) {
+        async syncWeightAdjustments(check_id) {
             try {
                 const getPureData = (arr) =>
                     (arr || []).map((d) => ({
@@ -182,7 +205,8 @@ export const useDialysisStore = defineStore("dialysis", {
                         weight: Number(d.weight),
                         category: d.category,
                     }));
-                const res = await api.post(`/patients/${mr}/weight-adjustments`, {
+                // 這裡也需要配合路由修改，建議後端 NursingActionController 也一併改為使用 check_id 參數
+                const res = await api.post(`/dialysis-checks/${check_id}/weight-adjustments`, {
                     items: [
                         ...getPureData(this.preDeductions),
                         ...getPureData(this.postDeductions),
@@ -198,15 +222,25 @@ export const useDialysisStore = defineStore("dialysis", {
                 return false;
             }
         },
-        async updatePatientWeights(mr, data) {
+        async updatePatientWeights(check_id, data) {
             try {
-                await api.post(`/patients/${mr}/weights`, data);
+                await api.post(`/dialysis-checks/${check_id}/weights`, data);
                 return true;
             } catch (err) {
                 console.error("🔴 [Weight Update Error]:", err);
                 return false;
             }
         },
+        async updateVitals(check_id, data) {
+            try {
+                await api.post(`/dialysis-checks/${check_id}/vitals`, data);
+                return true;
+            } catch (err) {
+                console.error("🔴 [Vitals Update Error]:", err);
+                throw err; // 拋出給 TabOnSign.vue 處理
+            }
+        },
+
         async fetchShiftOptions() {
             try {
                 const res = await api.get("/nursing/shift-options");
@@ -223,6 +257,43 @@ export const useDialysisStore = defineStore("dialysis", {
             } catch (err) {
                 console.error("🔴 [Supply List Error]:", err);
                 return [];
+            }
+        },
+        async fetchPatientDetails(mr) {
+            try {
+                const res = await api.get(`/patients/${mr}/dialysis-cases/current`);
+                return res.data;
+            } catch (err) {
+                console.error("🔴 [Patient Details Error]:", err);
+                return null;
+            }
+        },
+        async addNursingRecord(content, time = null) {
+            try {
+                // 改用 check_id 進行請求
+                const res = await api.post(`/dialysis-checks/${this.currentPatient.id}/nursing-records`, {
+                    content: content,
+                    time: time
+                });
+                if (res.data.success) {
+                    this.nursingRecords.unshift(res.data.record);
+                }
+            } catch (err) {
+                console.error("🔴 [Nursing Record Error]:", err);
+            }
+        },
+        async deleteNursingRecord(id) {
+            console.log("DEBUG: 準備刪除記錄 ID:", id);
+            try {
+                const res = await api.delete(`/nursing-records/${id}`);
+                console.log("DEBUG: 刪除回應:", res.data);
+                const idx = this.nursingRecords.findIndex(r => r.id === id);
+                if (idx !== -1) {
+                    this.nursingRecords[idx].deleted = true;
+                    this.nursingRecords[idx].deletedMeta = '已註銷';
+                }
+            } catch (err) {
+                console.error("🔴 [Delete Record Error]:", err);
             }
         },
     },

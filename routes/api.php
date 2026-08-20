@@ -16,14 +16,16 @@ Route::prefix('v1')->group(function () {
         Route::get('weight-adjust-items', [WeightAdjustItemController::class, 'index']); // 新增路由
         Route::get('dialysis/patients', [PatientController::class, 'index']);
         Route::get('patients/{mr}/dialysis-cases/current', [PatientController::class, 'showCurrentCase']);
-        Route::post('patients/{mr}/absence-leave', [PatientController::class, 'issueAbsenceLeave']);
-        Route::post('patients/{mr}/weights', [NursingActionController::class, 'updateWeights']);
-        Route::post('patients/{mr}/weight-adjustments', [NursingActionController::class, 'updateWeightAdjustments']);
-        Route::post('patients/{mr}/uf-goal', [NursingActionController::class, 'updateUfGoal']);
-        Route::post('patients/{mr}/incidents', [NursingActionController::class, 'reportIncident']);
+        Route::get('dialysis-checks/{check_id}', [PatientController::class, 'showByCheckId']);
+        Route::post('dialysis-checks/{check_id}/weights', [NursingActionController::class, 'updateWeights']);
+        Route::post('dialysis-checks/{check_id}/weight-adjustments', [NursingActionController::class, 'updateWeightAdjustments']);
+        Route::post('dialysis-checks/{check_id}/vitals', [NursingActionController::class, 'updateVitals']);
+        Route::post('dialysis-checks/{check_id}/absence-leave', [PatientController::class, 'issueAbsenceLeave']);
+        Route::post('dialysis-checks/{check_id}/uf-goal', [NursingActionController::class, 'updateUfGoal']);
+        Route::post('dialysis-checks/{check_id}/incidents', [NursingActionController::class, 'reportIncident']);
 
-        Route::get('patients/{mr}/nursing-records', [NursingRecordController::class, 'index']);
-        Route::post('patients/{mr}/nursing-records', [NursingRecordController::class, 'store']);
+        Route::get('dialysis-checks/{check_id}/nursing-records', [NursingRecordController::class, 'index']);
+        Route::post('dialysis-checks/{check_id}/nursing-records', [NursingRecordController::class, 'store']);
         Route::put('nursing-records/{id}', [NursingRecordController::class, 'update']);
         Route::delete('nursing-records/{id}', [NursingRecordController::class, 'destroy']);
 

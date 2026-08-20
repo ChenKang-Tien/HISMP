@@ -51,7 +51,9 @@
                         >mmHg</span
                     >
                 </div>
-                <div class="vsign-v">{{ store.vsignData.bp }}</div>
+                <div class="vsign-v">
+                    {{ store.vsignData.sys || '0' }}/{{ store.vsignData.dia || '0' }}
+                </div>
             </div>
             <div class="vsign-box" @click="openVsignModal">
                 <div class="vsign-l">
@@ -526,15 +528,26 @@
                     ✕
                 </button>
                 <div class="form-row">
-                    <div class="form-col">
-                        <div class="form-label">血壓 BP（mmHg）</div>
+                    <div class="form-col" style="flex: 1">
+                        <div class="form-label">收縮壓 Sys（mmHg）</div>
                         <input
-                            v-model="vsignForm.bp"
+                            v-model="vsignForm.sys"
                             class="form-input"
-                            placeholder="120/80"
+                            placeholder="120"
                             style="margin-bottom: 0"
                         />
                     </div>
+                    <div class="form-col" style="flex: 1">
+                        <div class="form-label">舒張壓 Dia（mmHg）</div>
+                        <input
+                            v-model="vsignForm.dia"
+                            class="form-input"
+                            placeholder="80"
+                            style="margin-bottom: 0"
+                        />
+                    </div>
+                </div>
+                <div class="form-row" style="margin-top: 8px">
                     <div class="form-col">
                         <div class="form-label">脈搏 Pulse（次/min）</div>
                         <input
@@ -544,8 +557,6 @@
                             style="margin-bottom: 0"
                         />
                     </div>
-                </div>
-                <div class="form-row" style="margin-top: 8px">
                     <div class="form-col">
                         <div class="form-label">呼吸 Resp.（次/min）</div>
                         <input
@@ -555,6 +566,8 @@
                             style="margin-bottom: 0"
                         />
                     </div>
+                </div>
+                <div class="form-row" style="margin-top: 8px">
                     <div class="form-col">
                         <div class="form-label">體溫 Temp.（°C）</div>
                         <input
@@ -564,15 +577,15 @@
                             style="margin-bottom: 0"
                         />
                     </div>
-                </div>
-                <div style="margin-top: 8px">
-                    <div class="form-label">血糖 F/S（mg/dL）</div>
-                    <input
-                        v-model="vsignForm.fs"
-                        class="form-input"
-                        placeholder="100"
-                        style="margin-bottom: 0"
-                    />
+                    <div v-if="store.currentPatient.hasFSOrder" class="form-col">
+                        <div class="form-label">血糖 F/S（mg/dL）</div>
+                        <input
+                            v-model="vsignForm.fs"
+                            class="form-input"
+                            placeholder="100"
+                            style="margin-bottom: 0"
+                        />
+                    </div>
                 </div>
                 <div class="mbtn-row">
                     <button class="mbtn sec" @click="showVsignModal = false">
@@ -620,7 +633,7 @@ const preDrugs = ref([
 ]);
 
 // 生命徵象內部表單暫存
-const vsignForm = ref({ bp: "", pr: "", rr: "", temp: "", fs: "" });
+const vsignForm = ref({ sys: "", dia: "", pr: "", rr: "", temp: "", fs: "" });
 
 // 三大評估暫存表單物件
 const assessForm = ref({
@@ -652,8 +665,10 @@ const fsBoxStyle = computed(() => {
 
 // 開啟生命徵象設定
 const openVsignModal = () => {
+    // 檢查 store.vsignData.sys/dia 是否存在
     vsignForm.value = {
-        bp: store.vsignData.bp !== "—" ? store.vsignData.bp : "",
+        sys: store.vsignData.sys || "",
+        dia: store.vsignData.dia || "",
         pr: store.vsignData.pr !== "—" ? store.vsignData.pr : "",
         rr: store.vsignData.rr !== "—" ? store.vsignData.rr : "",
         temp:
@@ -666,25 +681,37 @@ const openVsignModal = () => {
 };
 
 // 儲存生命徵象 (格式化邏輯對齊原稿)
-const saveVsignForm = () => {
-    let bpVal = vsignForm.value.bp;
-    const d = bpVal.replace(/\D/g, "");
-    if (d.length === 4) bpVal = d.slice(0, 2) + "/" + d.slice(2);
-    else if (d.length === 5 || d.length === 6)
-        bpVal = d.slice(0, 3) + "/" + d.slice(3);
+const saveVsignForm = async () => {
+    // 儲存至後端
+    try {
+        await store.updateVitals(store.currentPatient.id, {
+            sys: vsignForm.value.sys,
+            dia: vsignForm.value.dia,
+            pr: vsignForm.value.pr,
+            rr: vsignForm.value.rr,
+            temp: vsignForm.value.temp,
+            fs: vsignForm.value.fs
+        });
+        alert("✅ 生命徵象已成功送出！");
+        
+        // 更新 UI State
+        let tempVal = vsignForm.value.temp;
+        if (tempVal && !tempVal.includes("°C")) tempVal = tempVal + "°C";
 
-    let tempVal = vsignForm.value.temp;
-    if (tempVal && !tempVal.includes("°C")) tempVal = tempVal + "°C";
-
-    store.vsignData = {
-        bp: bpVal || "—",
-        pr: vsignForm.value.pr || "—",
-        rr: vsignForm.value.rr || "—",
-        temp: tempVal || "—",
-        fs: vsignForm.value.fs || "—",
-    };
-    store.vsignFilled = true;
-    showVsignModal.value = false;
+        store.vsignData = {
+            sys: vsignForm.value.sys || "",
+            dia: vsignForm.value.dia || "",
+            pr: vsignForm.value.pr || "—",
+            rr: vsignForm.value.rr || "—",
+            temp: tempVal || "—",
+            fs: vsignForm.value.fs || "—",
+        };
+        store.vsignFilled = true;
+        showVsignModal.value = false;
+    } catch (e) {
+        console.error("🔴 [UpdateVitals API Error]:", e.response ? e.response.data : e.message);
+        alert("⚠️ 送出失敗，請確認資料格式 (Console 已顯示詳細錯誤)。");
+    }
 };
 
 // 開啟三大評估

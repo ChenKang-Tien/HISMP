@@ -8,9 +8,9 @@ use Illuminate\Http\Request;
 class NursingActionController extends Controller
 {
     /**
-     * POST /api/v1/patients/{mr}/weights
+     * POST /api/v1/dialysis-checks/{check_id}/weights
      */
-    public function updateWeights(Request $request, $mr)
+    public function updateWeights(Request $request, $check_id)
     {
         $validated = $request->validate([
             'pre' => 'nullable|numeric',
@@ -18,20 +18,11 @@ class NursingActionController extends Controller
             'note' => 'nullable|string'
         ]);
 
-        // 查找對應的 PatientCheck
-        $patient = \App\Models\Patient::where('medical_record_no', $mr)->first();
-        if ($patient) {
-            $check = \App\Models\PatientCheck::whereHas('patient_reservation', function($q) use ($patient) {
-                $q->where('patient_id', $patient->id);
-            })->latest('date')->first();
-
-            if ($check) {
-                $check->update([
-                    'measure_weight_before' => $validated['pre'] ?? $check->measure_weight_before,
-                    'measure_weight_after' => $validated['post'] ?? $check->measure_weight_after
-                ]);
-            }
-        }
+        $check = \App\Models\PatientCheck::findOrFail($check_id);
+        $check->update([
+            'measure_weight_before' => $validated['pre'] ?? $check->measure_weight_before,
+            'measure_weight_after' => $validated['post'] ?? $check->measure_weight_after
+        ]);
 
         return response()->json([
             'success' => true,
@@ -40,13 +31,10 @@ class NursingActionController extends Controller
     }
 
     /**
-     * POST /api/v1/patients/{mr}/weight-adjustments
+     * POST /api/v1/dialysis-checks/{check_id}/weight-adjustments
      */
-    public function updateWeightAdjustments(Request $request, $mr)
+    public function updateWeightAdjustments(Request $request, $check_id)
     {
-        // 增加除錯資訊
-        \Illuminate\Support\Facades\Log::info('WeightAdjustments Payload Received:', ['mr' => $mr, 'data' => $request->all()]);
-
         $validated = $request->validate([
             'items' => 'present|array',
             'items.*.item_id' => 'required',
@@ -54,45 +42,31 @@ class NursingActionController extends Controller
             'items.*.category' => 'required|in:pre,post',
         ]);
 
-        \Illuminate\Support\Facades\Log::info('WeightAdjustments Validated Data:', ['data' => $validated]);
+        $check = \App\Models\PatientCheck::findOrFail($check_id);
 
-        $patient = \App\Models\Patient::where('medical_record_no', $mr)->first();
-        if (!$patient) return response()->json(['success' => false], 404);
+        // 清除該檢查表下的所有舊調整紀錄
+        \App\Models\PatientBeforeAdjustWeight::where('patient_check_id', $check->id)->delete();
+        \App\Models\PatientAfterAdjustWeight::where('patient_check_id', $check->id)->delete();
 
-        $check = \App\Models\PatientCheck::whereHas('patient_reservation', function($q) use ($patient) {
-            $q->where('patient_id', $patient->id);
-        })->latest('date')->first();
+        if (!empty($validated['items'])) {
+            foreach ($validated['items'] as $item) {
+                $adjustClass = ($item['category'] ?? 'pre') == 'post'
+                    ? \App\Models\PatientAfterAdjustWeight::class
+                    : \App\Models\PatientBeforeAdjustWeight::class;
 
-        if ($check) {
-            // 清除該檢查表下的所有舊調整紀錄
-            \App\Models\PatientBeforeAdjustWeight::where('patient_check_id', $check->id)->delete();
-            \App\Models\PatientAfterAdjustWeight::where('patient_check_id', $check->id)->delete();
-
-            // 如果有項目才新增，沒有項目則保持全刪除狀態
-            if (!empty($validated['items'])) {
-                foreach ($validated['items'] as $item) {
-                    $adjustClass = ($item['category'] ?? 'pre') == 'post'
-                        ? \App\Models\PatientAfterAdjustWeight::class
-                        : \App\Models\PatientBeforeAdjustWeight::class;
-
-                    $adjustClass::create([
-                        'patient_check_id' => $check->id,
-                        'item_id' => $item['item_id'],
-                        // 透後調整通常為「加回」或「扣除」，這裡確保正負號符合業務邏輯
-                        // 若 category 為 post，且原本是扣重(正值)，可能需要反轉符號
-                        'weight' => $item['weight'],
-                        'way_add' => 0,
-                        'nurse_id' => Auth::user()->id
-                    ]);
-                }
+                $adjustClass::create([
+                    'patient_check_id' => $check->id,
+                    'item_id' => $item['item_id'],
+                    'weight' => $item['weight'],
+                    'way_add' => 0,
+                    'nurse_id' => Auth::user()->id
+                ]);
             }
         }
 
-        // 回傳處理過的資料供前端 debug
         return response()->json([
             'success' => true,
-            'message' => '扣重項目已更新。',
-            'debug_received' => $validated['items'] // 將驗證後的資料回傳
+            'message' => '扣重項目已更新。'
         ], 200);
     }
 
@@ -124,6 +98,55 @@ class NursingActionController extends Controller
         return response()->json([
             'success' => true,
             'message' => '臨床事件 ' . $validated['type'] . ' 已記錄。'
+        ], 200);
+    }
+
+    /**
+     * POST /api/v1/dialysis-checks/{check_id}/vitals
+     */
+    public function updateVitals(Request $request, $check_id)
+    {
+        $validated = $request->validate([
+            'sys' => 'nullable|numeric',
+            'dia' => 'nullable|numeric',
+            'pr' => 'nullable|numeric',
+            'rr' => 'nullable|numeric',
+            'temp' => 'nullable|numeric',
+            'fs' => 'nullable|numeric'
+        ]);
+
+        $check = \App\Models\PatientCheck::findOrFail($check_id);
+
+        // 存入 PatientBeforePhysiologicalDatas
+        \App\Models\PatientBeforePhysiologicalDatas::updateOrCreate(
+            ['patient_check_id' => $check->id],
+            [
+                'systolic_blood_pressure' => $validated['sys'],
+                'diastolic_blood_pressure' => $validated['dia'],
+                'P' => $validated['pr'],
+                'R' => $validated['rr'],
+                'T' => $validated['temp'],
+                'fs' => $validated['fs'] ?? null
+            ]
+        );
+
+        // 同步更新 PatientMidBpPDatas
+        \App\Models\PatientMidBpPDatas::updateOrCreate(
+            ['patient_check_id' => $check->id, 'dispose_id' => 1],
+            [
+                'time' => now()->format('Y-m-d H:i:s'), // 修正為完整 datetime
+                'systolic_blood_pressure' => $validated['sys'],
+                'diastolic_blood_pressure' => $validated['dia'],
+                'P' => $validated['pr'],
+                'machine' => 0,
+                'nurse_id' => Auth::user()->id
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => '生命徵象已更新',
+            'data' => $validated
         ], 200);
     }
 

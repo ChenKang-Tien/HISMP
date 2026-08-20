@@ -2,65 +2,74 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PatientMidNurseRecord;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
 class NursingRecordController extends Controller
 {
     /**
-     * GET /api/v1/patients/{mr}/nursing-records
-     * 獲取特定病患當班所有病歷紀錄時間軸
+     * GET /api/v1/dialysis-checks/{check_id}/nursing-records
      */
-    public function index($mr)
+    public function index($check_id)
     {
-        // 🚀 依據病歷號動態返回對應的歷史紀錄 (以薛玉鳳 mr 為基準模擬)
-        $records = [
-            [
-                'id' => 1,
-                'time' => '09:20',
-                'content' => '低血壓 BP 92/54，快衝 N/S 100ml，UFR 調降，15分後追蹤。',
-                'nurse' => '楚心瑜',
-                'isDeleted' => false
-            ],
-            [
-                'id' => 2,
-                'time' => '08:05',
-                'content' => '透析上針順利，廔管穿刺無滲血，意識清楚，配合度佳。',
-                'nurse' => '楚心瑜',
-                'isDeleted' => false
-            ]
-        ];
+        $check = \App\Models\PatientCheck::findOrFail($check_id);
+
+        $records = PatientMidNurseRecord::where('patient_check_id', $check->id)
+            ->with('nurse')
+            ->orderBy('time', 'desc')
+            ->get()
+            ->map(function ($rec) {
+                // 明確判斷刪除狀態 (支援 deleted 與 is_deleted)
+                $isDeleted = ($rec->deleted == 1 || $rec->is_deleted == 1);
+
+                return [
+                    'id' => $rec->id,
+                    'time' => $rec->time,
+                    'content' => $rec->value ?? $rec->patient_statement,
+                    'nurse' => $rec->nurse->name ?? '未知護理師',
+                    'deleted' => $isDeleted,
+                    'deletedMeta' => $isDeleted ? '已註銷' : null
+                ];
+            });
 
         return response()->json([
             'success' => true,
             'records' => $records,
-            'last_autosave' => '11:58'
+            'last_autosave' => now()->format('H:i')
         ], 200);
     }
 
     /**
-     * POST /api/v1/patients/{mr}/nursing-records
-     * 建立一筆新病歷 (持久化成功回傳)
+     * POST /api/v1/dialysis-checks/{check_id}/nursing-records
      */
-    public function store(Request $request, $mr)
+    public function store(Request $request, $check_id)
     {
-        $request->validate([
-            'content' => 'required|string'
+        $validated = $request->validate([
+            'content' => 'required|string',
+            'time' => 'nullable|string'
         ]);
 
-        $timeStr = now()->format('H:i');
+        $check = \App\Models\PatientCheck::findOrFail($check_id);
 
-        // 🚀 模擬寫入資料庫後生成的帶有實體自增 ID 的真實紀錄
+        $record = PatientMidNurseRecord::create([
+            'patient_check_id' => $check->id,
+            'time' => now()->format('Y-m-d H:i:s'), // 確保包含完整日期時間
+            'value' => $validated['content'],
+            'nurse_id' => Auth::user()->id
+        ]);
+
         return response()->json([
             'success' => true,
-            'message' => '病歷成功具名持久化儲存 (Audit Trail 稽核鏈已啟動)',
+            'message' => '病歷成功具名持久化儲存',
             'record' => [
-                'id' => rand(10000, 99999),
-                'time' => $timeStr,
-                'content' => $request->content,
-                'nurse' => '楚心瑜',
+                'id' => $record->id,
+                'time' => $record->time,
+                'content' => $record->value,
+                'nurse' => Auth::user()->name,
                 'isDeleted' => false
             ]
-        ], 201); // 201 Created
+        ], 201);
     }
 
     /**
@@ -69,17 +78,23 @@ class NursingRecordController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $request->validate([
+        $validated = $request->validate([
             'content' => 'required|string'
+        ]);
+
+        $record = PatientMidNurseRecord::findOrFail($id);
+
+        $record->update([
+            'value' => $validated['content'] . " (修正: " . now()->format('H:i') . " 由 " . Auth::user()->name . " 更新)",
         ]);
 
         return response()->json([
             'success' => true,
             'record' => [
-                'id' => (int)$id,
-                'time' => now()->format('H:i'),
-                'content' => $request->content . '（修正留痕：' . now()->format('H:i') . ' 由楚心瑜覆寫更新）',
-                'nurse' => '楚心瑜',
+                'id' => $record->id,
+                'time' => $record->time,
+                'content' => $record->value,
+                'nurse' => $record->nurse->name ?? Auth::user()->name,
                 'isDeleted' => false
             ]
         ], 200);
@@ -87,17 +102,17 @@ class NursingRecordController extends Controller
 
     /**
      * DELETE /api/v1/nursing-records/{id}
-     * 註銷病歷 (法律加線留痕標記)
      */
     public function destroy($id)
     {
-        $timeStr = now()->format('H:i');
+        $record = PatientMidNurseRecord::findOrFail($id);
 
-        // 🚀 醫療法規：回傳 deleted_meta 註記給前端
+        // 假刪除標記
+        $record->update(['deleted' => 1]);
+
         return response()->json([
             'success' => true,
-            'message' => '病歷已依法執行劃線註銷軌跡，物理數據予以留存。',
-            'deleted_meta' => "〈楚心瑜 {$timeStr} 註銷刪除〉"
+            'message' => '病歷已依法執行劃線註銷。'
         ], 200);
     }
 }

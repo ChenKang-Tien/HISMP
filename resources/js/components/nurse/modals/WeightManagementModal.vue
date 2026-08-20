@@ -169,7 +169,7 @@ const handleSave = async () => {
     const post = displayPost.value ? parseFloat(displayPost.value) : null;
 
     // 透過 Store 進行 API 操作並觸發日誌備份
-    const success = await store.updatePatientWeights(store.currentPatient.mr, {
+    const success = await store.updatePatientWeights(store.currentPatient.id, {
         pre,
         post,
         note: "體重數據校正",

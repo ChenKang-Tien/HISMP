@@ -126,8 +126,8 @@
             >
                 <span
                     :style="{
-                        textDecoration: rec.isDeleted ? 'line-through' : 'none',
-                        color: rec.isDeleted ? '#94a3b8' : '#334155',
+                        textDecoration: rec.deleted ? 'line-through' : 'none',
+                        color: rec.deleted ? '#94a3b8' : '#334155',
                     }"
                 >
                     <b style="color: #0f766e; margin-right: 6px"
@@ -135,7 +135,7 @@
                     >
                     {{ rec.content }}
                     <span
-                        v-if="rec.isDeleted"
+                        v-if="rec.deleted"
                         style="
                             color: #ef4444;
                             margin-left: 6px;
@@ -146,8 +146,8 @@
                     >
                 </span>
                 <button
-                    v-if="!rec.isDeleted"
-                    @click="store.deleteNursingRecord(rec.id)"
+                    v-if="!rec.deleted"
+                    @click="deleteNursingRecordById(rec.id)"
                     style="
                         color: #ef4444;
                         border: none;
@@ -220,10 +220,8 @@ const openNWCreate = () => {
 };
 
 const openNursingRecordPopup = () => {
-    const text = prompt("請輸入新增加的當班護理記錄：");
-    if (text && text.trim()) {
-        store.addNursingRecord(text.trim());
-    }
+    console.log("NursingRecordBar: Attempting to emit open-modal record");
+    emit("open-modal", "record");
 };
 
 const editNursingRecordById = (id, currentContent) => {

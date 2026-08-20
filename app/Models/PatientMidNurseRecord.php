@@ -21,6 +21,7 @@ class PatientMidNurseRecord extends Model
         'continue',
         'continue_value',
         'nurse_id',
+        'deleted',
         'created_at',
         'updated_at'
         // 填上所有欄位

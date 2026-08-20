@@ -193,6 +193,62 @@ class PatientController extends Controller
     }
 
     /**
+     * GET /api/v1/dialysis-checks/{check_id}
+     * 使用 PatientCheck.id 精確取得當前透析單據明細
+     */
+    public function showByCheckId($check_id)
+    {
+        $check = \App\Models\PatientCheck::with('patient')->findOrFail($check_id);
+        $patient = $check->patient;
+
+        // 撈取最新體重資訊
+        $dialysisWeight = \App\Models\PatientDialysisWeight::where('patient_id', $patient->id)
+            ->latest('date')->first();
+
+        $preAdjusts = \App\Models\PatientBeforeAdjustWeight::where('patient_check_id', $check->id)->get();
+        $postAdjusts = \App\Models\PatientAfterAdjustWeight::where('patient_check_id', $check->id)->get();
+
+        $formatItems = function($adjusts) {
+            return $adjusts->map(function ($adj) {
+                return [
+                    'id' => $adj->id,
+                    'item_id' => $adj->item_id,
+                    'name' => $adj->item->item ?? '未知項目',
+                    'weight' => $adj->weight,
+                ];
+            })->values();
+        };
+
+        // 撈取生命徵象 (透前)
+        $vitals = \App\Models\PatientBeforePhysiologicalDatas::where('patient_check_id', $check->id)->first();
+
+        return response()->json([
+            'success' => true,
+            'check_id' => $check->id,
+            'weight_info' => [
+                'pre_raw_weight' => $check->measure_weight_before ?? 0,
+                'post_raw_weight' => $check->measure_weight_after ?? $dialysisWeight->post_weight ?? 0,
+                'dry_weight' => $dialysisWeight->dry_weight ?? 59.5,
+                'pre_deductions' => $formatItems($preAdjusts),
+                'post_deductions' => $formatItems($postAdjusts)
+            ],
+            'vitals' => [
+                'sys' => $vitals?->systolic_blood_pressure ?? '',
+                'dia' => $vitals?->diastolic_blood_pressure ?? '',
+                'pr' => $vitals?->P ?? '',
+                'rr' => $vitals?->R ?? '',
+                'temp' => $vitals?->T ? $vitals->T . '°C' : '',
+                'fs' => $vitals?->fs ?? ''
+            ],
+            'vitals_filled' => !!$vitals,
+            'hasFSOrder' => false,
+            'assess' => ['vascular' => 'AVF 正常', 'conscious' => '清醒合作', 'skin' => '完整無破損'],
+            'nursing_records' => [],
+            'last_autosave' => date('H:i')
+        ], 200);
+    }
+
+    /**
      * GET /api/v1/patients/{mr}/dialysis-cases/current
      * 取得選中病患的即時醫療、體重、生理參數明細大盤
      */
