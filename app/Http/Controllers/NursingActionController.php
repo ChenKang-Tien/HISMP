@@ -44,7 +44,6 @@ class NursingActionController extends Controller
 
         $check = \App\Models\PatientCheck::findOrFail($check_id);
 
-        // 清除該檢查表下的所有舊調整紀錄
         \App\Models\PatientBeforeAdjustWeight::where('patient_check_id', $check->id)->delete();
         \App\Models\PatientAfterAdjustWeight::where('patient_check_id', $check->id)->delete();
 
@@ -64,10 +63,64 @@ class NursingActionController extends Controller
             }
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => '扣重項目已更新。'
-        ], 200);
+        return response()->json(['success' => true, 'message' => '扣重項目已更新。'], 200);
+    }
+
+    /**
+     * POST /api/v1/dialysis-checks/{check_id}/assessments
+     */
+    public function updateAssessments(Request $request, $check_id)
+    {
+        $validated = $request->validate([
+            'vascularKind' => 'nullable|string',
+            'vascularPosLR' => 'nullable|string',
+            'vascularPosCenter' => 'nullable|string',
+            'permcathLen' => 'nullable|string',
+            'vascularEval' => 'nullable|array',
+            'vascularNote' => 'nullable|string',
+            'consciousState' => 'nullable|string',
+            'consciousNote' => 'nullable|string',
+            'skinState' => 'nullable|string',
+            'skinLocation' => 'nullable|string',
+            'skinSize' => 'nullable|string',
+            'skinNote' => 'nullable|string',
+        ]);
+
+        $typeMap = ['AVF' => 0, 'AVG' => 1, 'Permcath' => 2, 'D/L' => 3];
+        $posLRMap = ["L't" => 0, "R't" => 1];
+        $posCenterMap = ['SCVC' => 2, 'JVC' => 3, 'FVC' => 4];
+        $evalMap = ['正常' => 0, '紅' => 1, '腫' => 2, '熱' => 3, '痛' => 4, '滲血' => 5];
+        $skinMap = ['完整' => 0, '有傷口（含水泡）' => 1];
+        $consciousMap = ['清醒' => 0, '嗜睡' => 1, '木僵' => 2, '半昏迷' => 3, '昏迷' => 4, '失智' => 5];
+        
+        $posLR = $validated['vascularPosLR'] ?? 'L\'t';
+        $posCenter = $validated['vascularPosCenter'] ?? 'SCVC';
+        $evalIndices = array_map(fn($v) => $evalMap[$v] ?? null, $validated['vascularEval'] ?? []);
+        $skinIdx = $skinMap[$validated['skinState'] ?? '完整'] ?? 0;
+        $consciousIdx = $consciousMap[$validated['consciousState'] ?? '清醒'] ?? 0;
+        
+        \App\Models\PatientBeforePhysiologicalDatas::updateOrCreate(
+            ['patient_check_id' => $check_id],
+            [
+                'patient_check_id' => $check_id,
+                'vascular_access_type' => ($typeMap[$validated['vascularKind'] ?? 'AVF'] ?? 0) . 
+                                          (($validated['vascularKind'] ?? '') === 'Permcath' ? ' ' . ($validated['permcathLen'] ?? '') : ''),
+                'vascular_access_location' => ($posLRMap[$posLR] ?? 0) . ',' . ($posCenterMap[$posCenter] ?? 2),
+                'vascular_access' => implode(',', array_filter($evalIndices, fn($v) => !is_null($v)) ?: [0]) . (($validated['vascularNote'] ?? '') ? ',' . $validated['vascularNote'] : ''),
+                'vascular_note' => $validated['vascularNote'] ?? null,
+                'consciousness' => $consciousIdx . (($validated['consciousNote'] ?? '') ? ',' . $validated['consciousNote'] : ''),
+                'consciousness_note' => $validated['consciousNote'] ?? null,
+                'skin' => $skinIdx . 
+                          (($validated['skinLocation'] ?? '') ? ',' . $validated['skinLocation'] : '') . 
+                          (($validated['skinSize'] ?? '') ? ',' . $validated['skinSize'] : '') .
+                          (($validated['skinNote'] ?? '') ? ',' . $validated['skinNote'] : ''),
+                'skin_location' => $validated['skinLocation'] ?? null,
+                'skin_size' => $validated['skinSize'] ?? null,
+                'skin_note' => $validated['skinNote'] ?? null,
+            ]
+        );
+
+        return response()->json(['success' => true, 'message' => '三大評估已更新。'], 200);
     }
 
     /**
@@ -117,10 +170,10 @@ class NursingActionController extends Controller
 
         $check = \App\Models\PatientCheck::findOrFail($check_id);
 
-        // 存入 PatientBeforePhysiologicalDatas
         \App\Models\PatientBeforePhysiologicalDatas::updateOrCreate(
             ['patient_check_id' => $check->id],
             [
+                'patient_check_id' => $check->id,
                 'systolic_blood_pressure' => $validated['sys'],
                 'diastolic_blood_pressure' => $validated['dia'],
                 'P' => $validated['pr'],
@@ -130,11 +183,10 @@ class NursingActionController extends Controller
             ]
         );
 
-        // 同步更新 PatientMidBpPDatas
         \App\Models\PatientMidBpPDatas::updateOrCreate(
             ['patient_check_id' => $check->id, 'dispose_id' => 1],
             [
-                'time' => now()->format('Y-m-d H:i:s'), // 修正為完整 datetime
+                'time' => now()->format('Y-m-d H:i:s'),
                 'systolic_blood_pressure' => $validated['sys'],
                 'diastolic_blood_pressure' => $validated['dia'],
                 'P' => $validated['pr'],

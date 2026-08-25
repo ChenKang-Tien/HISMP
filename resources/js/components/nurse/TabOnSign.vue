@@ -52,7 +52,9 @@
                     >
                 </div>
                 <div class="vsign-v">
-                    {{ store.vsignData.sys || '0' }}/{{ store.vsignData.dia || '0' }}
+                    {{ store.vsignData.sys || "0" }}/{{
+                        store.vsignData.dia || "0"
+                    }}
                 </div>
             </div>
             <div class="vsign-box" @click="openVsignModal">
@@ -408,11 +410,39 @@
                             v-model="assessForm.permcathLen"
                             class="form-input"
                             type="text"
-                            placeholder="如：155 → 15.5 cm"
+                            placeholder="如：15.5 cm"
                             style="margin-bottom: 0"
                         />
                     </div>
-                    <div class="form-label">評估</div>
+                    <div class="form-label">位置 (L/R)</div>
+                    <div class="assess-opt-row">
+                        <span
+                            v-for="p in ['L\'t', 'R\'t']"
+                            :key="p"
+                            :class="[
+                                'assess-opt',
+                                { sel: assessForm.vascularPosLR === p },
+                            ]"
+                            @click="assessForm.vascularPosLR = p"
+                        >
+                            {{ p }}
+                        </span>
+                    </div>
+                    <div class="form-label">位置 (中心/導管)</div>
+                    <div class="assess-opt-row">
+                        <span
+                            v-for="p in ['SCVC', 'JVC', 'FVC']"
+                            :key="p"
+                            :class="[
+                                'assess-opt',
+                                { sel: assessForm.vascularPosCenter === p },
+                            ]"
+                            @click="assessForm.vascularPosCenter = p"
+                        >
+                            {{ p }}
+                        </span>
+                    </div>
+                    <div class="form-label">評估 (可多選)</div>
                     <div class="assess-opt-row">
                         <span
                             v-for="e in [
@@ -426,13 +456,20 @@
                             :key="e"
                             :class="[
                                 'assess-opt',
-                                { sel: assessForm.vascularEval === e },
+                                { sel: assessForm.vascularEval.includes(e) },
                             ]"
-                            @click="assessForm.vascularEval = e"
+                            @click="toggleVascularEval(e)"
                         >
                             {{ e }}
                         </span>
                     </div>
+                    <div class="form-label">備註</div>
+                    <textarea
+                        v-model="assessForm.vascularNote"
+                        class="form-input"
+                        rows="2"
+                        placeholder="血管通路備註..."
+                    ></textarea>
                 </div>
 
                 <!-- 頁籤1：意識狀態 -->
@@ -458,6 +495,13 @@
                             {{ c }}
                         </span>
                     </div>
+                    <div class="form-label">備註</div>
+                    <textarea
+                        v-model="assessForm.consciousNote"
+                        class="form-input"
+                        rows="2"
+                        placeholder="意識狀態備註..."
+                    ></textarea>
                 </div>
 
                 <!-- 頁籤2：皮膚完整性 -->
@@ -496,16 +540,14 @@
                             />
                         </div>
                     </div>
+                    <div class="form-label">備註</div>
+                    <textarea
+                        v-model="assessForm.skinNote"
+                        class="form-input"
+                        rows="2"
+                        placeholder="皮膚狀態備註..."
+                    ></textarea>
                 </div>
-
-                <div class="form-label" style="margin-top: 8px">備註</div>
-                <textarea
-                    v-model="assessForm.note"
-                    class="form-input"
-                    rows="2"
-                    placeholder="自由文字備註..."
-                    style="height: auto; resize: none"
-                ></textarea>
 
                 <div class="mbtn-row">
                     <button class="mbtn sec" @click="showAssessModal = false">
@@ -577,7 +619,10 @@
                             style="margin-bottom: 0"
                         />
                     </div>
-                    <div v-if="store.currentPatient.hasFSOrder" class="form-col">
+                    <div
+                        v-if="store.currentPatient.hasFSOrder"
+                        class="form-col"
+                    >
                         <div class="form-label">血糖 F/S（mg/dL）</div>
                         <input
                             v-model="vsignForm.fs"
@@ -638,8 +683,10 @@ const vsignForm = ref({ sys: "", dia: "", pr: "", rr: "", temp: "", fs: "" });
 // 三大評估暫存表單物件
 const assessForm = ref({
     vascularKind: "AVF",
+    vascularPosLR: "L't",
+    vascularPosCenter: "SCVC",
     permcathLen: "",
-    vascularEval: "正常",
+    vascularEval: ["正常"],
     consciousState: "清醒",
     skinState: "完整",
     skinLocation: "",
@@ -690,10 +737,10 @@ const saveVsignForm = async () => {
             pr: vsignForm.value.pr,
             rr: vsignForm.value.rr,
             temp: vsignForm.value.temp,
-            fs: vsignForm.value.fs
+            fs: vsignForm.value.fs,
         });
         alert("✅ 生命徵象已成功送出！");
-        
+
         // 更新 UI State
         let tempVal = vsignForm.value.temp;
         if (tempVal && !tempVal.includes("°C")) tempVal = tempVal + "°C";
@@ -709,49 +756,137 @@ const saveVsignForm = async () => {
         store.vsignFilled = true;
         showVsignModal.value = false;
     } catch (e) {
-        console.error("🔴 [UpdateVitals API Error]:", e.response ? e.response.data : e.message);
+        console.error(
+            "🔴 [UpdateVitals API Error]:",
+            e.response ? e.response.data : e.message,
+        );
         alert("⚠️ 送出失敗，請確認資料格式 (Console 已顯示詳細錯誤)。");
     }
 };
 
 // 開啟三大評估
-const openAssessModal = (tabIndex) => {
+const openAssessModal = async (tabIndex) => {
+    try {
+        const res = await store.api.get(
+            `/dialysis-checks/${store.currentPatient.id}`,
+        );
+        const assessData = res.data.assess;
+        console.log(assessData);
+
+        if (assessData && Object.keys(assessData).length > 0) {
+            assessForm.value.vascularKind = assessData.vascular_kind || "AVF";
+            assessForm.value.vascularPosLR =
+                assessData.vascular_pos_lr || "L't";
+            assessForm.value.vascularPosCenter =
+                assessData.vascular_pos_center || "SCVC";
+
+            // 處理多選：從陣列轉換 (或者從逗號分隔字串轉陣列)
+            if (Array.isArray(assessData.vascular_eval)) {
+                assessForm.value.vascularEval =
+                    assessData.vascular_eval.map(String);
+            } else if (typeof assessData.vascular_eval === "string") {
+                assessForm.value.vascularEval =
+                    assessData.vascular_eval.split(",");
+            } else {
+                assessForm.value.vascularEval = ["正常"];
+            }
+
+            console.log(assessForm.value.vascularEval);
+
+            assessForm.value.vascularNote = assessData.vascular_note || "";
+
+            assessForm.value.consciousState = assessData.conscious || "清醒";
+            assessForm.value.consciousNote = assessData.conscious_note || "";
+
+            assessForm.value.skinState = assessData.skin || "完整";
+            assessForm.value.skinLocation = assessData.skin_location || "";
+            assessForm.value.skinSize = assessData.skin_size || "";
+            assessForm.value.skinNote = assessData.skin_note || "";
+
+            // 同步更新 store.assessState
+            store.assessState = {
+                vascular: `${assessForm.value.vascularKind} ${assessForm.value.vascularPosLR}${assessForm.value.vascularPosCenter} ${assessForm.value.vascularEval.join(",")}`,
+                conscious: assessForm.value.consciousState,
+                skin: assessForm.value.skinState,
+            };
+        } else {
+            assessForm.value = {
+                vascularKind: "AVF",
+                vascularPosLR: "L't",
+                vascularPosCenter: "SCVC",
+                permcathLen: "",
+                vascularEval: ["正常"],
+                vascularNote: "",
+                consciousState: "清醒",
+                consciousNote: "",
+                skinState: "完整",
+                skinLocation: "",
+                skinSize: "",
+                skinNote: "",
+                note: "",
+            };
+        }
+    } catch (e) {
+        console.error("🔴 [Load Assessment Error]:", e);
+    }
     assessActiveTab.value = tabIndex;
     showAssessModal.value = true;
 };
 
 // 儲存三大評估 (完全對齊原稿文字生成模式)
-const saveUnifiedAssess = () => {
-    let vascularTxt =
-        assessForm.value.vascularKind + " " + assessForm.value.vascularEval;
-    if (
-        assessForm.value.vascularKind === "Permcath" &&
-        assessForm.value.permcathLen
-    ) {
-        vascularTxt = `Permcath(${assessForm.value.permcathLen}cm) ${assessForm.value.vascularEval}`;
+const toggleVascularEval = (val) => {
+    if (val === "正常") {
+        assessForm.value.vascularEval = ["正常"];
+    } else {
+        const idx = assessForm.value.vascularEval.indexOf(val);
+        const normIdx = assessForm.value.vascularEval.indexOf("正常");
+        if (normIdx !== -1) assessForm.value.vascularEval.splice(normIdx, 1);
+
+        if (idx === -1) {
+            assessForm.value.vascularEval.push(val);
+        } else {
+            assessForm.value.vascularEval.splice(idx, 1);
+        }
+        if (assessForm.value.vascularEval.length === 0)
+            assessForm.value.vascularEval = ["正常"];
     }
+};
 
-    let skinTxt = assessForm.value.skinState;
-    if (
-        assessForm.value.skinState !== "完整" &&
-        assessForm.value.skinLocation
-    ) {
-        skinTxt = `${assessForm.value.skinLocation} ${assessForm.value.skinSize}cm ${assessForm.value.skinState}`;
-    }
+const saveUnifiedAssess = async () => {
+    try {
+        const payload = {
+            vascularKind: assessForm.value.vascularKind,
+            vascularPosLR: assessForm.value.vascularPosLR,
+            vascularPosCenter: assessForm.value.vascularPosCenter,
+            permcathLen: assessForm.value.permcathLen,
+            vascularEval: assessForm.value.vascularEval,
+            vascularNote: assessForm.value.vascularNote,
+            consciousState: assessForm.value.consciousState,
+            consciousNote: assessForm.value.consciousNote,
+            skinState: assessForm.value.skinState,
+            skinLocation: assessForm.value.skinLocation,
+            skinSize: assessForm.value.skinSize,
+            skinNote: assessForm.value.skinNote,
+        };
 
-    store.assessState = {
-        vascular: vascularTxt,
-        conscious: assessForm.value.consciousState,
-        skin: skinTxt,
-    };
-
-    if (assessForm.value.note) {
-        store.addNursingRecord(
-            `[評估備註] 血管/意識/皮膚綜合追加：${assessForm.value.note}`,
+        await store.api.post(
+            `/dialysis-checks/${store.currentPatient.id}/assessments`,
+            payload,
         );
-    }
 
-    showAssessModal.value = false;
+        // 更新 store.assessState 以便外面顯示
+        store.assessState = {
+            vascular: `${payload.vascularKind} ${payload.vascularPosLR}${payload.vascularPosCenter} ${payload.vascularEval.join(",")}`,
+            conscious: payload.consciousState,
+            skin: payload.skinState,
+        };
+
+        showAssessModal.value = false;
+        alert("✅ 三大評估已同步儲存至資料庫。");
+    } catch (e) {
+        console.error("🔴 [Assess Update Error]:", e);
+        alert("⚠️ 儲存評估失敗。");
+    }
 };
 
 // 新增透前給藥行
