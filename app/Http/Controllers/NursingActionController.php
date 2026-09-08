@@ -218,8 +218,33 @@ class NursingActionController extends Controller
         ], 200);
     }
 
-    public function lockSupplyList()
+    public function savePreDialysisMedicines(Request $request, $check_id)
     {
-        return response()->json(['success' => true], 200);
+        $validated = $request->validate([
+            'medicines' => 'required|array',
+            'medicines.*.medicine_id' => 'required|integer',
+            'medicines.*.medicine' => 'required|string',
+            'medicines.*.amount' => 'required|integer',
+            'medicines.*.route_id' => 'required|integer',
+            'medicines.*.note' => 'nullable|string',
+        ]);
+
+        \App\Models\PatientBeforeDialysisMedicine::where('patient_check_id', $check_id)->delete();
+
+        foreach ($validated['medicines'] as $med) {
+            \App\Models\PatientBeforeDialysisMedicine::create([
+                'patient_check_id' => $check_id,
+                'medicine_id' => $med['medicine_id'],
+                'medicine' => $med['medicine'],
+                'amount' => $med['amount'],
+                'route_id' => $med['route_id'],
+                'note' => $med['note'] ?? '',
+                'nurse_id' => Auth::user()->id,
+                'deleted' => 0,
+            ]);
+        }
+
+        return response()->json(['success' => true, 'message' => '透前給藥紀錄已更新。'], 200);
     }
+
 }

@@ -21,6 +21,9 @@ Route::prefix('v1')->group(function () {
         Route::post('dialysis-checks/{check_id}/weight-adjustments', [NursingActionController::class, 'updateWeightAdjustments']);
         Route::post('dialysis-checks/{check_id}/vitals', [NursingActionController::class, 'updateVitals']);
         Route::post('dialysis-checks/{check_id}/assessments', [NursingActionController::class, 'updateAssessments']);
+        Route::post('dialysis-checks/{check_id}/medicines/pre', [NursingActionController::class, 'savePreDialysisMedicines']);
+
+
         Route::post('dialysis-checks/{check_id}/absence-leave', [PatientController::class, 'issueAbsenceLeave']);
         Route::post('dialysis-checks/{check_id}/uf-goal', [NursingActionController::class, 'updateUfGoal']);
         Route::post('dialysis-checks/{check_id}/incidents', [NursingActionController::class, 'reportIncident']);
