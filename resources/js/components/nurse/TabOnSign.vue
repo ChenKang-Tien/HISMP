@@ -163,10 +163,10 @@
         <!-- 透前給藥卡片列 -->
         <div class="drug-section-hdr">
             <div class="sec-title" style="margin-bottom: 0">
-                <i class="ti ti-pill"></i>透前給藥
+                <i class="ti ti-pill"></i>透前給藥（透析用藥）
             </div>
             <button class="add-drug-btn" @click="addPreDrugRow">
-                ➕ 新增透前給藥記錄
+                ➕ 新增處置藥物
             </button>
         </div>
         <div id="pre-drug-list" style="margin-bottom: 5px">
