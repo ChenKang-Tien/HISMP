@@ -27,7 +27,6 @@ class PatientBeforePhysiologicalDatas extends Model
         'skin',
         'created_at',
         'updated_at'
-        // 填上所有欄位
     ];
 
     public function patient_check() {

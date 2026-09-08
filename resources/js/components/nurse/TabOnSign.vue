@@ -445,22 +445,17 @@
                     <div class="form-label">評估 (可多選)</div>
                     <div class="assess-opt-row">
                         <span
-                            v-for="e in [
-                                '正常',
-                                '紅',
-                                '腫',
-                                '熱',
-                                '痛',
-                                '滲血',
-                            ]"
-                            :key="e"
+                            v-for="(e, index) in evalOptions"
+                            :key="e.val"
                             :class="[
                                 'assess-opt',
-                                { sel: assessForm.vascularEval.includes(e) },
+                                {
+                                    sel: assessForm.vascularEval[index] === '1',
+                                },
                             ]"
-                            @click="toggleVascularEval(e)"
+                            @click="toggleVascularEval(index)"
                         >
-                            {{ e }}
+                            {{ e.label }}
                         </span>
                     </div>
                     <div class="form-label">備註</div>
@@ -477,22 +472,15 @@
                     <div class="form-label">意識狀態</div>
                     <div class="assess-opt-row">
                         <span
-                            v-for="c in [
-                                '清醒',
-                                '嗜睡',
-                                '木僵',
-                                '半昏迷',
-                                '昏迷',
-                                '失智',
-                            ]"
-                            :key="c"
+                            v-for="c in consciousOptions"
+                            :key="c.val"
                             :class="[
                                 'assess-opt',
-                                { sel: assessForm.consciousState === c },
+                                { sel: assessForm.consciousState === c.label },
                             ]"
-                            @click="assessForm.consciousState = c"
+                            @click="assessForm.consciousState = c.label"
                         >
-                            {{ c }}
+                            {{ c.label }}
                         </span>
                     </div>
                     <div class="form-label">備註</div>
@@ -775,6 +763,7 @@ const openAssessModal = async (tabIndex) => {
 
         if (assessData && Object.keys(assessData).length > 0) {
             assessForm.value.vascularKind = assessData.vascular_kind || "AVF";
+            assessForm.value.permcathLen = assessData.permcath_len || "";
             assessForm.value.vascularPosLR =
                 assessData.vascular_pos_lr || "L't";
             assessForm.value.vascularPosCenter =
@@ -782,33 +771,80 @@ const openAssessModal = async (tabIndex) => {
 
             // 處理多選：從陣列轉換 (或者從逗號分隔字串轉陣列)
             if (Array.isArray(assessData.vascular_eval)) {
+                // 如果是陣列，假設裡面的元素直接是索引字串
                 assessForm.value.vascularEval =
                     assessData.vascular_eval.map(String);
             } else if (typeof assessData.vascular_eval === "string") {
+                // 如果是逗號分隔字串 "1,0,0,0,0,0,備註"
+                const parts = assessData.vascular_eval.split(",");
+                // 前 6 個是位元陣列
+                const bits = parts.slice(0, 6);
+                const note = parts.slice(6).join(",");
+
                 assessForm.value.vascularEval =
-                    assessData.vascular_eval.split(",");
+                    bits.length === 6 ? bits : ["1", "0", "0", "0", "0", "0"];
+                assessForm.value.vascularNote = note || "";
             } else {
-                assessForm.value.vascularEval = ["正常"];
+                assessForm.value.vascularEval = ["1", "0", "0", "0", "0", "0"];
+                assessForm.value.vascularNote = "";
             }
 
             console.log(assessForm.value.vascularEval);
 
             assessForm.value.vascularNote = assessData.vascular_note || "";
+            console.log(assessData.conscious);
 
-            assessForm.value.consciousState = assessData.conscious || "清醒";
+            const cVal = assessData.conscious || "0";
+            console.log("DEBUG: Conscious val from assessData:", cVal);
+
+            // 修正：consciousOptions 裡面的 val 是字串或數字，統一轉為字串比較
+            const foundConscious = consciousOptions.find(
+                (o) => String(o.val) === String(cVal),
+            );
+            console.log("foundConscious:" + foundConscious);
+
+            assessForm.value.consciousState = foundConscious
+                ? foundConscious.label
+                : "清醒";
+            console.log(
+                "DEBUG: Resolved consciousState:",
+                assessForm.value.consciousState,
+            );
+            assessForm.value.skinState =
+                assessData.skin == "1" ? "有傷口(含水泡)" : "完整";
             assessForm.value.consciousNote = assessData.conscious_note || "";
-
-            assessForm.value.skinState = assessData.skin || "完整";
+            assessForm.value.skinNote = assessData.skin_note || "";
             assessForm.value.skinLocation = assessData.skin_location || "";
             assessForm.value.skinSize = assessData.skin_size || "";
-            assessForm.value.skinNote = assessData.skin_note || "";
 
             // 同步更新 store.assessState
-            store.assessState = {
-                vascular: `${assessForm.value.vascularKind} ${assessForm.value.vascularPosLR}${assessForm.value.vascularPosCenter} ${assessForm.value.vascularEval.join(",")}`,
-                conscious: assessForm.value.consciousState,
-                skin: assessForm.value.skinState,
-            };
+            // store.assessState = {
+            //     vascular: `${assessForm.value.vascularKind} ${assessForm.value.vascularPosLR}${assessForm.value.vascularPosCenter} ${
+            //         assessForm.value.vascularEval[0] === "1"
+            //             ? "正常"
+            //             : evalOptions
+            //                   .filter(
+            //                       (_, idx) =>
+            //                           assessForm.value.vascularEval[idx] ===
+            //                           "1",
+            //                   )
+            //                   .map((o) => o.label)
+            //                   .join(",")
+            //     }${assessForm.value.vascularNote ? " (" + assessForm.value.vascularNote + ")" : ""}`,
+            //     conscious:
+            //         assessForm.value.consciousState +
+            //         (assessForm.value.consciousNote
+            //             ? `(${assessForm.value.consciousNote})`
+            //             : ""),
+            //     skin:
+            //         assessForm.value.skinState +
+            //         (assessForm.value.skinLocation || assessForm.value.skinSize
+            //             ? `(${assessForm.value.skinLocation}${assessForm.value.skinSize ? " " + assessForm.value.skinSize + "cm" : ""})`
+            //             : "") +
+            //         (assessForm.value.skinNote
+            //             ? ` (${assessForm.value.skinNote})`
+            //             : ""),
+            // };
         } else {
             assessForm.value = {
                 vascularKind: "AVF",
@@ -833,41 +869,91 @@ const openAssessModal = async (tabIndex) => {
     showAssessModal.value = true;
 };
 
-// 儲存三大評估 (完全對齊原稿文字生成模式)
-const toggleVascularEval = (val) => {
-    if (val === "正常") {
-        assessForm.value.vascularEval = ["正常"];
-    } else {
-        const idx = assessForm.value.vascularEval.indexOf(val);
-        const normIdx = assessForm.value.vascularEval.indexOf("正常");
-        if (normIdx !== -1) assessForm.value.vascularEval.splice(normIdx, 1);
+// 血管評估選項
+const evalOptions = [
+    { label: "正常", val: "0" },
+    { label: "紅", val: "1" },
+    { label: "腫", val: "2" },
+    { label: "熱", val: "3" },
+    { label: "痛", val: "4" },
+    { label: "滲血", val: "5" },
+];
 
-        if (idx === -1) {
-            assessForm.value.vascularEval.push(val);
-        } else {
-            assessForm.value.vascularEval.splice(idx, 1);
+// 意識狀態選項
+const consciousOptions = [
+    { label: "清醒", val: "0" },
+    { label: "嗜睡", val: "1" },
+    { label: "木僵", val: "2" },
+    { label: "半昏迷", val: "3" },
+    { label: "昏迷", val: "4" },
+    { label: "失智", val: "5" },
+];
+
+// 儲存邏輯 (多選)
+const toggleVascularEval = (idx) => {
+    // 血管通路評估共 6 個選項
+    if (
+        !assessForm.value.vascularEval ||
+        assessForm.value.vascularEval.length !== 6
+    ) {
+        assessForm.value.vascularEval = ["1", "0", "0", "0", "0", "0"];
+    }
+
+    if (idx === 0) {
+        // 點擊「正常」：強制設為 [1, 0, 0, 0, 0, 0]
+        assessForm.value.vascularEval = ["1", "0", "0", "0", "0", "0"];
+    } else {
+        // 點擊「其他」：先移除正常位元，變更點擊位元
+        assessForm.value.vascularEval[0] = "0";
+        assessForm.value.vascularEval[idx] =
+            assessForm.value.vascularEval[idx] === "1" ? "0" : "1";
+
+        // 若全關，恢復預設正常
+        if (!assessForm.value.vascularEval.includes("1")) {
+            assessForm.value.vascularEval = ["1", "0", "0", "0", "0", "0"];
         }
-        if (assessForm.value.vascularEval.length === 0)
-            assessForm.value.vascularEval = ["正常"];
     }
 };
 
 const saveUnifiedAssess = async () => {
     try {
+        // 確保 vascularEval 包含正常且沒有其他，或是其他選項的組合
+        // 按照規則：選項索引 (0-5) + 備註
+        const evalIndices = [0, 1, 2, 3, 4, 5];
+        // 按照規則：選項索引 (0-5) + 備註
+        // 修正：vascularEval 本身現在就是長度為 6 的陣列 (['1', '0', '0', '0', '0', '0'])
+        // 直接 join 即可
         const payload = {
-            vascularKind: assessForm.value.vascularKind,
-            vascularPosLR: assessForm.value.vascularPosLR,
-            vascularPosCenter: assessForm.value.vascularPosCenter,
-            permcathLen: assessForm.value.permcathLen,
-            vascularEval: assessForm.value.vascularEval,
-            vascularNote: assessForm.value.vascularNote,
-            consciousState: assessForm.value.consciousState,
-            consciousNote: assessForm.value.consciousNote,
-            skinState: assessForm.value.skinState,
-            skinLocation: assessForm.value.skinLocation,
-            skinSize: assessForm.value.skinSize,
-            skinNote: assessForm.value.skinNote,
+            vascularKind: [
+                assessForm.value.vascularKind,
+                assessForm.value.vascularPosLR,
+                assessForm.value.vascularPosCenter,
+                assessForm.value.vascularKind === "Permcath"
+                    ? assessForm.value.permcathLen || ""
+                    : "",
+                assessForm.value.vascularNote || "",
+            ].join(","),
+            vascularEval:
+                assessForm.value.vascularEval.join(",") +
+                "," +
+                (assessForm.value.vascularNote || ""),
+            consciousState:
+                (consciousOptions.find(
+                    (c) => c.label === assessForm.value.consciousState,
+                )?.val || "0") +
+                "," +
+                (assessForm.value.consciousNote || ""),
+            skinState:
+                (assessForm.value.skinState === "完整" ? "0" : "1") +
+                "," +
+                (assessForm.value.skinLocation || "") +
+                "," +
+                (assessForm.value.skinSize || "") +
+                "," +
+                (assessForm.value.skinNote || ""),
         };
+
+        console.log("Saving payload:", payload);
 
         await store.api.post(
             `/dialysis-checks/${store.currentPatient.id}/assessments`,
@@ -876,9 +962,30 @@ const saveUnifiedAssess = async () => {
 
         // 更新 store.assessState 以便外面顯示
         store.assessState = {
-            vascular: `${payload.vascularKind} ${payload.vascularPosLR}${payload.vascularPosCenter} ${payload.vascularEval.join(",")}`,
-            conscious: payload.consciousState,
-            skin: payload.skinState,
+            vascular: `${assessForm.value.vascularKind}${assessForm.value.vascularKind === "Permcath" && assessForm.value.permcathLen ? " " + assessForm.value.permcathLen + "cm" : ""} ${assessForm.value.vascularPosLR}${assessForm.value.vascularPosCenter} ${
+                assessForm.value.vascularEval[0] === "1"
+                    ? "正常"
+                    : evalOptions
+                          .filter(
+                              (_, idx) =>
+                                  assessForm.value.vascularEval[idx] === "1",
+                          )
+                          .map((o) => o.label)
+                          .join(",")
+            }${assessForm.value.vascularNote ? " (" + assessForm.value.vascularNote + ")" : ""}`,
+            conscious:
+                assessForm.value.consciousState +
+                (assessForm.value.consciousNote
+                    ? `(${assessForm.value.consciousNote})`
+                    : ""),
+            skin:
+                assessForm.value.skinState +
+                (assessForm.value.skinLocation || assessForm.value.skinSize
+                    ? `(${assessForm.value.skinLocation}${assessForm.value.skinSize ? " " + assessForm.value.skinSize + "cm" : ""})`
+                    : "") +
+                (assessForm.value.skinNote
+                    ? ` (${assessForm.value.skinNote})`
+                    : ""),
         };
 
         showAssessModal.value = false;

@@ -4,12 +4,10 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class NursingActionController extends Controller
 {
-    /**
-     * POST /api/v1/dialysis-checks/{check_id}/weights
-     */
     public function updateWeights(Request $request, $check_id)
     {
         $validated = $request->validate([
@@ -30,9 +28,6 @@ class NursingActionController extends Controller
         ], 200);
     }
 
-    /**
-     * POST /api/v1/dialysis-checks/{check_id}/weight-adjustments
-     */
     public function updateWeightAdjustments(Request $request, $check_id)
     {
         $validated = $request->validate([
@@ -66,66 +61,64 @@ class NursingActionController extends Controller
         return response()->json(['success' => true, 'message' => '扣重項目已更新。'], 200);
     }
 
-    /**
-     * POST /api/v1/dialysis-checks/{check_id}/assessments
-     */
     public function updateAssessments(Request $request, $check_id)
     {
         $validated = $request->validate([
-            'vascularKind' => 'nullable|string',
-            'vascularPosLR' => 'nullable|string',
-            'vascularPosCenter' => 'nullable|string',
-            'permcathLen' => 'nullable|string',
-            'vascularEval' => 'nullable|array',
-            'vascularNote' => 'nullable|string',
-            'consciousState' => 'nullable|string',
-            'consciousNote' => 'nullable|string',
-            'skinState' => 'nullable|string',
-            'skinLocation' => 'nullable|string',
-            'skinSize' => 'nullable|string',
-            'skinNote' => 'nullable|string',
+            'vascularKind' => 'nullable',
+            'vascularEval' => 'nullable',
+            'consciousState' => 'nullable',
+            'skinState' => 'nullable',
         ]);
 
         $typeMap = ['AVF' => 0, 'AVG' => 1, 'Permcath' => 2, 'D/L' => 3];
         $posLRMap = ["L't" => 0, "R't" => 1];
         $posCenterMap = ['SCVC' => 2, 'JVC' => 3, 'FVC' => 4];
-        $evalMap = ['正常' => 0, '紅' => 1, '腫' => 2, '熱' => 3, '痛' => 4, '滲血' => 5];
-        $skinMap = ['完整' => 0, '有傷口（含水泡）' => 1];
-        $consciousMap = ['清醒' => 0, '嗜睡' => 1, '木僵' => 2, '半昏迷' => 3, '昏迷' => 4, '失智' => 5];
-        
-        $posLR = $validated['vascularPosLR'] ?? 'L\'t';
-        $posCenter = $validated['vascularPosCenter'] ?? 'SCVC';
-        $evalIndices = array_map(fn($v) => $evalMap[$v] ?? null, $validated['vascularEval'] ?? []);
-        $skinIdx = $skinMap[$validated['skinState'] ?? '完整'] ?? 0;
-        $consciousIdx = $consciousMap[$validated['consciousState'] ?? '清醒'] ?? 0;
-        
+
+        $kindData = explode(',', $validated['vascularKind'] ?? 'AVF,,,');
+        $kindIdx = $typeMap[$kindData[0]] ?? 0;
+        $posLR = $kindData[1] ?? "L't";
+        $posCenter = $kindData[2] ?? 'SCVC';
+        $permcathLen = $kindData[3] ?? '';
+        $vascularNote = $kindData[4] ?? '';
+
+        $evalInput = is_array($validated['vascularEval'] ?? null)
+            ? $validated['vascularEval']
+            : explode(',', $validated['vascularEval'] ?? '');
+
+        if (count($evalInput) > 6) {
+            $vascularNote = array_pop($evalInput);
+        }
+
+        $evalBits = array_map(fn($i) => (isset($evalInput[$i]) && $evalInput[$i] == '1') ? '1' : '0', range(0, 5));
+        if (!in_array('1', $evalBits)) {
+            $evalBits = ['1', '0', '0', '0', '0', '0'];
+        }
+
+        $skinData = explode(',', $validated['skinState'] ?? '0,,,');
+        $skinIdx = (int)($skinData[0] ?? 0);
+        $skinLocation = $skinData[1] ?? '';
+        $skinSize = $skinData[2] ?? '';
+        $skinNote = $skinData[3] ?? '';
+
+        $consciousData = explode(',', $validated['consciousState'] ?? '0,');
+        $consciousIdx = (int)($consciousData[0] ?? 0);
+        $consciousNote = $consciousData[1] ?? '';
+
         \App\Models\PatientBeforePhysiologicalDatas::updateOrCreate(
             ['patient_check_id' => $check_id],
             [
                 'patient_check_id' => $check_id,
-                'vascular_access_type' => ($typeMap[$validated['vascularKind'] ?? 'AVF'] ?? 0) . 
-                                          (($validated['vascularKind'] ?? '') === 'Permcath' ? ' ' . ($validated['permcathLen'] ?? '') : ''),
+                'vascular_access_type' => $kindIdx . ($kindData[0] === 'Permcath' ? ',' . $permcathLen : ''),
                 'vascular_access_location' => ($posLRMap[$posLR] ?? 0) . ',' . ($posCenterMap[$posCenter] ?? 2),
-                'vascular_access' => implode(',', array_filter($evalIndices, fn($v) => !is_null($v)) ?: [0]) . (($validated['vascularNote'] ?? '') ? ',' . $validated['vascularNote'] : ''),
-                'vascular_note' => $validated['vascularNote'] ?? null,
-                'consciousness' => $consciousIdx . (($validated['consciousNote'] ?? '') ? ',' . $validated['consciousNote'] : ''),
-                'consciousness_note' => $validated['consciousNote'] ?? null,
-                'skin' => $skinIdx . 
-                          (($validated['skinLocation'] ?? '') ? ',' . $validated['skinLocation'] : '') . 
-                          (($validated['skinSize'] ?? '') ? ',' . $validated['skinSize'] : '') .
-                          (($validated['skinNote'] ?? '') ? ',' . $validated['skinNote'] : ''),
-                'skin_location' => $validated['skinLocation'] ?? null,
-                'skin_size' => $validated['skinSize'] ?? null,
-                'skin_note' => $validated['skinNote'] ?? null,
+                'vascular_access' => implode(',', $evalBits) . ',' . $vascularNote,
+                'consciousness' => $consciousIdx . ',' . $consciousNote,
+                'skin' => $skinIdx . ',' . $skinLocation . ',' . $skinSize . ',' . $skinNote,
             ]
         );
 
         return response()->json(['success' => true, 'message' => '三大評估已更新。'], 200);
     }
 
-    /**
-     * POST /api/v1/patients/{mr}/absence-leave
-     */
     public function issueAbsenceLeave(Request $request, $mr)
     {
         $validated = $request->validate([
@@ -139,9 +132,6 @@ class NursingActionController extends Controller
         ], 200);
     }
 
-    /**
-     * POST /api/v1/patients/{mr}/incidents
-     */
     public function reportIncident(Request $request, $mr)
     {
         $validated = $request->validate([
@@ -154,9 +144,6 @@ class NursingActionController extends Controller
         ], 200);
     }
 
-    /**
-     * POST /api/v1/dialysis-checks/{check_id}/vitals
-     */
     public function updateVitals(Request $request, $check_id)
     {
         $validated = $request->validate([
@@ -202,9 +189,6 @@ class NursingActionController extends Controller
         ], 200);
     }
 
-    /**
-     * GET /api/v1/nursing/shift-options
-     */
     public function fetchShiftOptions()
     {
         return response()->json([
@@ -213,9 +197,6 @@ class NursingActionController extends Controller
         ], 200);
     }
 
-    /**
-     * POST /api/v1/nursing/shifts
-     */
     public function saveShift(Request $request)
     {
         $validated = $request->validate([
@@ -226,9 +207,6 @@ class NursingActionController extends Controller
         return response()->json(['success' => true], 200);
     }
 
-    /**
-     * GET /api/v1/nursing/supply-tmr
-     */
     public function fetchSupplyList()
     {
         return response()->json([
@@ -240,9 +218,6 @@ class NursingActionController extends Controller
         ], 200);
     }
 
-    /**
-     * POST /api/v1/nursing/supply-tmr/lock
-     */
     public function lockSupplyList()
     {
         return response()->json(['success' => true], 200);

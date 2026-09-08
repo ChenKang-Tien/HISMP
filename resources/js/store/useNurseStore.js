@@ -158,7 +158,7 @@ export const useDialysisStore = defineStore("dialysis", {
                 // 1. 取得體重與透析基礎資訊
                 const res = await api.get(`/dialysis-checks/${patient.id}`);
                 const info = res.data?.weight_info || {};
-                
+
                 // 更新 store.vsignData
                 if (res.data.vitals) {
                     this.vsignData = {
@@ -174,21 +174,92 @@ export const useDialysisStore = defineStore("dialysis", {
 
                 // 同步更新病患醫囑狀態
                 this.currentPatient.hasFSOrder = res.data.hasFSOrder || false;
-                
+
                 this.preRawWeight = parseFloat(info.pre_raw_weight || 0);
                 this.postRawWeight = parseFloat(info.post_raw_weight || 0);
                 this.dryWeight = parseFloat(info.dry_weight || 0);
                 this.preDeductions = Array.isArray(info.pre_deductions)
-                    ? info.pre_deductions.map(d => ({ ...d, category: 'pre' }))
+                    ? info.pre_deductions.map((d) => ({
+                          ...d,
+                          category: "pre",
+                      }))
                     : [];
                 this.postDeductions = Array.isArray(info.post_deductions)
-                    ? info.post_deductions.map(d => ({ ...d, category: 'post' }))
+                    ? info.post_deductions.map((d) => ({
+                          ...d,
+                          category: "post",
+                      }))
                     : [];
-                
+
+                // 3. 獲取該次透析的三大評估
+                console.log(
+                    "DEBUG: Patient load assess data:",
+                    res.data.assess,
+                );
+                // 3. 獲取該次透析的三大評估
+                if (res.data.assess) {
+                    const assessData = res.data.assess;
+
+                    // 血管：重建顯示字串，確保跟儲存邏輯一致
+                    const rawBits = Array.isArray(assessData.vascular_eval)
+                        ? assessData.vascular_eval
+                        : (assessData.vascular_eval || "1,0,0,0,0,0,").split(
+                              ",",
+                          );
+                    const vBits = rawBits.slice(0, 6);
+                    const vLabels = ["正常", "紅", "腫", "熱", "痛", "滲血"];
+                    const vEvalStr =
+                        vBits[0] === "1"
+                            ? "正常"
+                            : vBits
+                                  .map((b, i) => (b === "1" ? vLabels[i] : ""))
+                                  .filter(Boolean)
+                                  .join(",");
+                    const vNote = assessData.vascular_note || "";
+                    const vResult = `${assessData.vascular_kind || "AVF"}${assessData.vascular_kind === "Permcath" && assessData.permcath_len ? " " + assessData.permcath_len + "cm" : ""} ${assessData.vascular_pos_lr || ""}${assessData.vascular_pos_center || ""} ${vEvalStr}${vNote ? " (" + vNote + ")" : ""}`;
+
+                    // 意識：格式 "索引,備註"
+                    const cData = (assessData.conscious || "0,").split(",");
+                    const cLabels = [
+                        "清醒",
+                        "嗜睡",
+                        "木僵",
+                        "半昏迷",
+                        "昏迷",
+                        "失智",
+                    ];
+                    const cIdx = parseInt(cData[0]) || 0;
+                    const cNote = assessData.conscious_note || "";
+                    const cResult =
+                        (cLabels[cIdx] || "清醒") + (cNote ? `(${cNote})` : "");
+
+                    // 皮膚：格式 "索引,部位,大小,備註"
+                    const sState = assessData.skin === '1' ? '有傷口(含水泡)' : '完整';
+                    const sResult = sState + 
+                        (assessData.skin_location || assessData.skin_size 
+                            ? `(${assessData.skin_location || ''}${assessData.skin_size ? ' ' + assessData.skin_size + 'cm' : ''})` 
+                            : '') + 
+                        (assessData.skin_note ? ` (${assessData.skin_note})` : '');
+
+                    this.assessState = {
+                        vascular: vResult,
+                        conscious: cResult,
+                        skin: sResult,
+                    };
+                } else {
+                    this.assessState = {
+                        vascular: "正常",
+                        conscious: "清醒",
+                        skin: "完整",
+                    };
+                }
+
                 // 2. 獲取該次透析的護理記錄
-                const recRes = await api.get(`/dialysis-checks/${patient.id}/nursing-records`);
+                const recRes = await api.get(
+                    `/dialysis-checks/${patient.id}/nursing-records`,
+                );
                 this.nursingRecords = recRes.data.records || [];
-                
+
                 this.calculateWeights();
             } catch (err) {
                 console.error("🔴 [Patient Load Error]:", err);
@@ -206,18 +277,21 @@ export const useDialysisStore = defineStore("dialysis", {
                         category: d.category,
                     }));
                 // 這裡也需要配合路由修改，建議後端 NursingActionController 也一併改為使用 check_id 參數
-                const res = await api.post(`/dialysis-checks/${check_id}/weight-adjustments`, {
-                    items: [
-                        ...getPureData(this.preDeductions),
-                        ...getPureData(this.postDeductions),
-                    ],
-                });
-                
-                console.log('API Response Debug:', res.data);
+                const res = await api.post(
+                    `/dialysis-checks/${check_id}/weight-adjustments`,
+                    {
+                        items: [
+                            ...getPureData(this.preDeductions),
+                            ...getPureData(this.postDeductions),
+                        ],
+                    },
+                );
+
+                console.log("API Response Debug:", res.data);
                 return true;
             } catch (err) {
                 if (err.response) {
-                    console.error('API Error (422/Other):', err.response.data);
+                    console.error("API Error (422/Other):", err.response.data);
                 }
                 return false;
             }
@@ -261,7 +335,9 @@ export const useDialysisStore = defineStore("dialysis", {
         },
         async fetchPatientDetails(mr) {
             try {
-                const res = await api.get(`/patients/${mr}/dialysis-cases/current`);
+                const res = await api.get(
+                    `/patients/${mr}/dialysis-cases/current`,
+                );
                 return res.data;
             } catch (err) {
                 console.error("🔴 [Patient Details Error]:", err);
@@ -271,10 +347,13 @@ export const useDialysisStore = defineStore("dialysis", {
         async addNursingRecord(content, time = null) {
             try {
                 // 改用 check_id 進行請求
-                const res = await api.post(`/dialysis-checks/${this.currentPatient.id}/nursing-records`, {
-                    content: content,
-                    time: time
-                });
+                const res = await api.post(
+                    `/dialysis-checks/${this.currentPatient.id}/nursing-records`,
+                    {
+                        content: content,
+                        time: time,
+                    },
+                );
                 if (res.data.success) {
                     this.nursingRecords.unshift(res.data.record);
                 }
@@ -287,10 +366,10 @@ export const useDialysisStore = defineStore("dialysis", {
             try {
                 const res = await api.delete(`/nursing-records/${id}`);
                 console.log("DEBUG: 刪除回應:", res.data);
-                const idx = this.nursingRecords.findIndex(r => r.id === id);
+                const idx = this.nursingRecords.findIndex((r) => r.id === id);
                 if (idx !== -1) {
                     this.nursingRecords[idx].deleted = true;
-                    this.nursingRecords[idx].deletedMeta = '已註銷';
+                    this.nursingRecords[idx].deletedMeta = "已註銷";
                 }
             } catch (err) {
                 console.error("🔴 [Delete Record Error]:", err);
