@@ -165,7 +165,7 @@
             <div class="sec-title" style="margin-bottom: 0">
                 <i class="ti ti-pill"></i>透前給藥（透析用藥）
             </div>
-            <button class="add-drug-btn" @click="addPreDrugRow">
+            <button class="add-drug-btn" @click="showDrugModal = true">
                 ➕ 新增處置藥物
             </button>
         </div>
@@ -345,6 +345,37 @@
         </div>
 
         <!-- ② 三大評估統一式大彈窗 (原稿 V20 DL-129 三頁籤配置) -->
+        <!-- ③ 透前給藥彈窗 -->
+        <div :class="['modal-overlay', { open: showDrugModal }]">
+            <div class="modal" style="max-width: 400px">
+                <div class="modal-hdr"><i class="ti ti-pill"></i>新增透前給藥</div>
+                <button class="modal-x" @click="showDrugModal = false">✕</button>
+                
+                <div class="form-label">藥品名稱 (搜尋)</div>
+                <input type="text" class="form-input" placeholder="輸入藥名搜尋..." v-model="newDrugForm.medicine" @input="searchMedicines($event.target.value)" />
+                <div v-if="medicineOptions.length > 0" style="position: absolute; width: 350px; z-index: 999; border: 1px solid #e2e8f0; border-radius: 4px; max-height: 150px; overflow-y: auto; background: #fff; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+                    <div v-for="m in medicineOptions" :key="m.id" @click="selectMedicine(m)" style="padding: 8px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f1f5f9;" onmouseover="this.style.backgroundColor='#f1f5f9'" onmouseout="this.style.backgroundColor='transparent'">
+                        {{ m.name }}
+                    </div>
+                </div>
+                
+                <div class="form-label">用量</div>
+                <input v-model.number="newDrugForm.amount" type="number" class="form-input" />
+
+                <div class="form-label">給藥途徑</div>
+                <select v-model="newDrugForm.route_id" class="form-input">
+                    <option v-for="r in routeOptions" :key="r.id" :value="r.id">
+                        {{ r.name }}
+                    </option>
+                </select>
+                
+                <div class="mbtn-row">
+                    <button class="mbtn sec" @click="showDrugModal = false">取消</button>
+                    <button class="mbtn pri" @click="saveNewDrug">✅ 確認新增</button>
+                </div>
+            </div>
+        </div>
+
         <div :class="['modal-overlay', { open: showAssessModal }]">
             <div class="modal" style="max-width: 500px">
                 <div class="modal-hdr">
@@ -634,7 +665,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { useDialysisStore } from "@/store/useNurseStore";
 
 const store = useDialysisStore();
@@ -997,14 +1028,58 @@ const saveUnifiedAssess = async () => {
 };
 
 // 新增透前給藥行
-const addPreDrugRow = () => {
-    const name = prompt("請輸入藥品處置名稱：", "Amtrel 5mg");
-    if (name) {
+const showDrugModal = ref(false);
+const newDrugForm = ref({ medicine_id: '', medicine: '', amount: 1, route_id: 1, note: '' });
+const medicineOptions = ref([]);
+const routeOptions = ref([]);
+
+onMounted(async () => {
+    try {
+        const res = await store.api.get('/routes-of-administration');
+        routeOptions.value = res.data;
+    } catch (e) { console.error("載入途徑失敗:", e); }
+});
+// 模擬搜尋藥物 (實際開發應改為 API 呼叫)
+const searchMedicines = async (query) => {
+    if (!query) { medicineOptions.value = []; return; }
+    try {
+        const response = await store.api.get(`/medicines/search?q=${encodeURIComponent(query)}`);
+        // 確保搜尋結果中包含 id，並正確賦值
+        medicineOptions.value = response.data.map(m => ({ id: m.id, name: m.product_name }));
+    } catch (e) { console.error("搜尋藥物失敗:", e); }
+};
+
+const selectMedicine = (medicine) => {
+    newDrugForm.value.medicine = medicine.name;
+    newDrugForm.value.medicine_id = medicine.id;
+    medicineOptions.value = []; // 清空選項
+};
+
+const saveNewDrug = async () => {
+    if (!newDrugForm.value.medicine) { alert("請輸入藥品名稱"); return; }
+    
+    const payload = {
+        medicines: [{
+            medicine_id: newDrugForm.value.medicine_id || 0,
+            medicine: newDrugForm.value.medicine,
+            amount: newDrugForm.value.amount,
+            route_id: newDrugForm.value.route_id,
+            note: newDrugForm.value.note
+        }]
+    };
+
+    try {
+        await store.api.post(`/dialysis-checks/${store.currentPatient.id}/medicines/pre`, payload);
         const time = new Date().toTimeString().slice(0, 5);
         preDrugs.value.push({
-            text: `@${time} ${name} PO 楚心瑜`,
-            isDeleted: false,
+            text: `@${time} ${newDrugForm.value.medicine} ${newDrugForm.value.amount}顆`,
+            isDeleted: false
         });
+        showDrugModal.value = false;
+        alert("✅ 透前給藥已儲存至後端。");
+    } catch (e) {
+        console.error("儲存透前給藥失敗:", e);
+        alert("⚠️ 儲存失敗。");
     }
 };
 
