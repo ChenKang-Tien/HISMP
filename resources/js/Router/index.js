@@ -47,10 +47,10 @@ const router = createRouter({
 // 🛡️ 醫療級路由守衛 (絕對防止無限迴圈安全版)
 // ═══════════════════════════════════
 router.beforeEach((to, from, next) => {
-    const token = localStorage.getItem("hismp_token");
+    const token = sessionStorage.getItem("hismp_token") || localStorage.getItem("hismp_token");
 
-    // 💡 關鍵對齊：從 localStorage 拿出來的是你在 Login.vue 存進去的 role_id
-    const roleId = localStorage.getItem("hismp_role_id");
+    // 💡 關鍵對齊：從 sessionStorage 拿出來的是你在 Login.vue 存進去的 role_id
+    const roleId = sessionStorage.getItem("hismp_role_id") || localStorage.getItem("hismp_role_id");
 
     // 🎯 精準對齊你的 role_id 規則
     const isDoctor = roleId == "4"; // 4 是主治醫師

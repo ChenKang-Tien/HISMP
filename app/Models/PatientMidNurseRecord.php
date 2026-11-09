@@ -32,7 +32,7 @@ class PatientMidNurseRecord extends Model
     }
 
     public function nurse() {
-        return $this->belongsTo('App\Models\User');
+        return $this->belongsTo('App\Models\User', 'nurse_id', 'id');
     }
 
     public function nurse_record_auxiliary() {

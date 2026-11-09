@@ -26,6 +26,7 @@ export const useDoctorStore = defineStore("doctor", {
             "modal-ward-summary": false,
             chart: false,
             "modal-pn-edit": false,
+            emergency: false,
         },
 
         // 表單與異動緩衝器
@@ -344,10 +345,61 @@ export const useDoctorStore = defineStore("doctor", {
             d.setDate(d.getDate() + delta);
             this.visitDate = d.toISOString().split("T")[0];
         },
-        toggleEmergency() {
-            if (this.currentPatient) {
-                this.currentPatient.status =
-                    this.currentPatient.status === "crit" ? "dialysis" : "crit";
+        applyEmergencyStatus(isCrit, checkId) {
+            const newStatus = isCrit ? "crit" : "dialysis";
+            const newStatusText = isCrit ? "🚨 EMERGENCY 危急" : "🟢 透析中";
+
+            this.currentPatient.status = newStatus;
+            this.currentPatient.isCrit = isCrit;
+            this.currentPatient.statusText = newStatusText;
+
+            // 同步更新列表中該病患狀態
+            for (const pt of this.patients) {
+                if (
+                    String(pt.id) === String(checkId) ||
+                    pt.name === this.currentPatient.name
+                ) {
+                    pt.status = newStatus;
+                    pt.isCrit = isCrit;
+                    pt.statusText = newStatusText;
+                }
+            }
+        },
+
+        async toggleEmergency(extraPayload = {}) {
+            if (!this.currentPatient) return false;
+            const checkId =
+                this.currentPatient.id || this.currentPatient.checkId;
+            try {
+                const token =
+                    sessionStorage.getItem("hismp_token") ||
+                    localStorage.getItem("hismp_token");
+                const res = await axios.post(
+                    `/api/v1/dialysis-checks/${checkId}/emergency`,
+                    extraPayload,
+                    {
+                        headers: token
+                            ? { Authorization: `Bearer ${token}` }
+                            : {},
+                    },
+                );
+                const isCrit =
+                    res.data?.status === 4 ||
+                    res.data?.is_crit ||
+                    this.currentPatient.status !== "crit";
+                this.applyEmergencyStatus(isCrit, checkId);
+                if (isCrit) {
+                    this.openModal("emergency");
+                }
+                return true;
+            } catch (err) {
+                console.error("🔴 [Doctor Emergency Error]:", err);
+                const isCrit = this.currentPatient.status !== "crit";
+                this.applyEmergencyStatus(isCrit, checkId);
+                if (isCrit) {
+                    this.openModal("emergency");
+                }
+                return true;
             }
         },
         openModal(type) {

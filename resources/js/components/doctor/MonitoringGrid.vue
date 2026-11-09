@@ -90,7 +90,7 @@
                         <td class="time-cell" :class="{ add: row.isAdd }">
                             <span v-html="row.label"></span><br /><span
                                 style="font-size: 9px; font-weight: 400"
-                                >{{ row.time }}</span
+                                >{{ row.HCDTTM }}</span
                             >
                         </td>
                         <td

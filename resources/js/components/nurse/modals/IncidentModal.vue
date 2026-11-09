@@ -35,9 +35,14 @@ const events = [
 ];
 
 const submit = async (type) => {
-    const success = await store.reportIncident(store.currentPatient.mr, type);
+    const target = props.patient?.id || props.patient?.mr || store.currentPatient?.id || store.currentPatient?.mr;
+    const evt = events.find((e) => e.type === type);
+    const success = await store.reportIncident(target, type);
     if (success) {
+        alert(`✅ 已成功通報記錄【${evt?.label || type}】事件，並已同步寫入護理病歷留痕。`);
         emit('update:modelValue', false);
+    } else {
+        alert("⚠️ 臨床事件通報失敗，請確認網路連線或重試。");
     }
 };
 </script>

@@ -116,15 +116,22 @@ const handleLogin = async () => {
         if (response.data.success) {
             const { token, user, user_id } = response.data;
 
-            // 💾 記錄本次登入成功的 Email
+            // 💾 記錄本次登入成功的 Email (跨分頁保留記住帳號)
             localStorage.setItem("hismp_remembered_email", form.email);
 
-            // 🔒 將金鑰與醫護身份安全存入瀏覽器儲存庫 (全面對齊新版路由守衛的 Key)
-            localStorage.setItem("hismp_token", token);
-            localStorage.setItem("hismp_user_id", user_id);
-            localStorage.setItem("hismp_user_name", user.name);
-            localStorage.setItem("hismp_role_id", user.role_id); // 存入 'doctor' 或 'nurse'
-            localStorage.setItem("hismp_role_name", user.role_name); // 存入 '主治醫師' 或 '護理長'
+            // 🔒 改用 sessionStorage 儲存分頁隔離之 Token 與身份，防止同一電腦開多分頁帳號互相覆蓋
+            sessionStorage.setItem("hismp_token", token);
+            sessionStorage.setItem("hismp_user_id", user_id);
+            sessionStorage.setItem("hismp_user_name", user.name);
+            sessionStorage.setItem("hismp_role_id", user.role_id); // 存入 'doctor' 或 'nurse'
+            sessionStorage.setItem("hismp_role_name", user.role_name); // 存入 '主治醫師' 或 '護理長'
+
+            // 清理舊的 localStorage 以免殘留干擾
+            localStorage.removeItem("hismp_token");
+            localStorage.removeItem("hismp_user_id");
+            localStorage.removeItem("hismp_user_name");
+            localStorage.removeItem("hismp_role_id");
+            localStorage.removeItem("hismp_role_name");
             // 🏥 根據後端判定後的真實角色字串，精準分流跳轉
             if (user.role_id === 4) {
                 router.push("/doctor"); // 順暢滑入醫生控制台

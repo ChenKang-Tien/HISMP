@@ -7,7 +7,7 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>本次 HCT 數值 (%)：</label>
+                    <label>本次 HCT 數值：</label>
                     <input
                         type="number"
                         v-model="val"
@@ -48,10 +48,17 @@ const store = useDialysisStore();
 
 const close = () => emit("update:modelValue", false);
 const submit = async () => {
-    const success = await store.addNursingRecord(`[HCT記錄] 設定 HCT 為 ${val.value}%`);
-    if(success) {
+    if (!val.value) {
+        alert("請輸入有效的 HCT 數值！");
+        return;
+    }
+    const target = props.patient?.id || props.patient?.mr || store.currentPatient?.id;
+    const success = await store.updateHct(target, parseFloat(val.value), "tw");
+    if (success) {
         emit("confirm", val.value);
         close();
+    } else {
+        alert("HCT 儲存失敗，請重試！");
     }
 };
 </script>

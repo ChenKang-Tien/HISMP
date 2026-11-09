@@ -237,23 +237,35 @@
             class="sign-row"
             :style="isSignDisabled ? 'opacity:0.5; pointer-events:none;' : ''"
         >
+            <!-- 主責護理師 On-Sign -->
             <div
                 :class="['sbtn', { signed: store.mainSigned }]"
                 @click="executeMainOnSign"
+                :title="store.mainSigned ? '點擊解除主簽章' : '主責護理師點擊進行 On-Sign 核簽'"
             >
                 {{
                     store.mainSigned
-                        ? "✓ On-Sign 已簽·資料鎖定"
+                        ? "✓ " + (store.mainNurseName || "主責") + " On-Sign 已簽"
                         : "主責護理師 On-Sign"
                 }}
             </div>
+
+            <!-- 雙簽護理師 Double Sign (必須不同護理師) -->
             <div
-                :class="['sbtn', { signed: isDoubleSigned }]"
+                :class="['sbtn', { signed: store.doubleSigned }]"
+                :style="!store.mainSigned ? 'opacity:0.6; cursor:not-allowed;' : ''"
                 @click="triggerDoubleSign"
+                :title="
+                    !store.mainSigned
+                        ? '需先完成主責護理師 On-Sign 後方可進行 Double Sign'
+                        : (store.doubleSigned
+                            ? '點擊解除雙簽'
+                            : '第二位護理師臨櫃覆核 Double Sign')
+                "
             >
                 {{
-                    isDoubleSigned
-                        ? "✓ Double Sign 已雙簽"
+                    store.doubleSigned
+                        ? "✓ " + (store.doubleNurseName || "覆核") + " Double Sign 已雙簽"
                         : "雙簽護理師 Double Sign"
                 }}
             </div>
@@ -263,401 +275,509 @@
         <!-- 🎛️ MODALS 彈窗完全還原（前置整備、三大評估統一、生命徵象） -->
         <!-- ═══════════════════════════════════ -->
 
-        <!-- ① 前置整備彈窗 -->
-        <div :class="['modal-overlay', { open: showPrepModal }]">
-            <div class="modal">
-                <div class="modal-hdr">
-                    <i class="ti ti-checklist"></i
-                    >前置整備確認（依醫囑自動產生）
-                </div>
-                <button class="modal-x" @click="showPrepModal = false">
-                    ✕
-                </button>
-                <div
-                    style="font-size: 11px; color: #94a3b8; margin-bottom: 8px"
-                >
-                    對照實物逐項確認就位
-                </div>
-                <div
-                    style="
-                        font-size: 10px;
-                        font-weight: 700;
-                        color: #475569;
-                        margin-bottom: 5px;
-                        text-transform: uppercase;
-                        letter-spacing: 0.4px;
-                    "
-                >
-                    醫器
-                </div>
-                <div
-                    v-for="item in prepItems.device"
-                    :key="item.id"
-                    :class="['prep-item', { checked: item.checked }]"
-                    @click="item.checked = !item.checked"
-                >
-                    <div class="prep-chk">{{ item.checked ? "✓" : "" }}</div>
-                    {{ item.name }}
-                </div>
-                <div
-                    style="
-                        font-size: 10px;
-                        font-weight: 700;
-                        color: #475569;
-                        margin: 8px 0 5px;
-                        text-transform: uppercase;
-                        letter-spacing: 0.4px;
-                    "
-                >
-                    藥材
-                </div>
-                <div
-                    v-for="item in prepItems.med"
-                    :key="item.id"
-                    :class="['prep-item', { checked: item.checked }]"
-                    @click="item.checked = !item.checked"
-                >
-                    <div class="prep-chk">{{ item.checked ? "✓" : "" }}</div>
-                    {{ item.name }}
-                </div>
-                <div
-                    style="
-                        background: #fffbeb;
-                        border: 1px solid #fde68a;
-                        border-radius: 6px;
-                        padding: 6px 8px;
-                        font-size: 11px;
-                        color: #b45309;
-                        margin-top: 8px;
-                    "
-                >
-                    ⚠️ IRON 本月未到施打週，無需準備
-                </div>
-                <div class="mbtn-row">
-                    <button class="mbtn sec" @click="showPrepModal = false">
-                        關閉
-                    </button>
-                    <button class="mbtn pri" @click="showPrepModal = false">
-                        ✅ 全部確認就位
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- ② 三大評估統一式大彈窗 (原稿 V20 DL-129 三頁籤配置) -->
-        <!-- ③ 透前給藥彈窗 -->
-        <div :class="['modal-overlay', { open: showDrugModal }]">
-            <div class="modal" style="max-width: 400px">
-                <div class="modal-hdr"><i class="ti ti-pill"></i>新增透前給藥</div>
-                <button class="modal-x" @click="showDrugModal = false">✕</button>
-                
-                <div class="form-label">藥品名稱 (搜尋)</div>
-                <input type="text" class="form-input" placeholder="輸入藥名搜尋..." v-model="newDrugForm.medicine" @input="searchMedicines($event.target.value)" />
-                <div v-if="medicineOptions.length > 0" style="position: absolute; width: 350px; z-index: 999; border: 1px solid #e2e8f0; border-radius: 4px; max-height: 150px; overflow-y: auto; background: #fff; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
-                    <div v-for="m in medicineOptions" :key="m.id" @click="selectMedicine(m)" style="padding: 8px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f1f5f9;" onmouseover="this.style.backgroundColor='#f1f5f9'" onmouseout="this.style.backgroundColor='transparent'">
-                        {{ m.name }}
-                    </div>
-                </div>
-                
-                <div class="form-label">用量</div>
-                <input v-model.number="newDrugForm.amount" type="number" class="form-input" />
-
-                <div class="form-label">給藥途徑</div>
-                <select v-model="newDrugForm.route_id" class="form-input">
-                    <option v-for="r in routeOptions" :key="r.id" :value="r.id">
-                        {{ r.name }}
-                    </option>
-                </select>
-                
-                <div class="mbtn-row">
-                    <button class="mbtn sec" @click="showDrugModal = false">取消</button>
-                    <button class="mbtn pri" @click="saveNewDrug">✅ 確認新增</button>
-                </div>
-            </div>
-        </div>
-
-        <div :class="['modal-overlay', { open: showAssessModal }]">
-            <div class="modal" style="max-width: 500px">
-                <div class="modal-hdr">
-                    <i class="ti ti-stethoscope"></i>三大評估
-                </div>
-                <button class="modal-x" @click="showAssessModal = false">
-                    ✕
-                </button>
-
-                <!-- 三分頁標籤按鈕 -->
-                <div style="display: flex; gap: 4px; margin-bottom: 12px">
-                    <button
-                        :class="[
-                            'assess-tab-btn',
-                            { active: assessActiveTab === 0 },
-                        ]"
-                        @click="assessActiveTab = 0"
-                    >
-                        🌿 血管通路
-                    </button>
-                    <button
-                        :class="[
-                            'assess-tab-btn',
-                            { active: assessActiveTab === 1 },
-                        ]"
-                        @click="assessActiveTab = 1"
-                    >
-                        🧠 意識狀態
-                    </button>
-                    <button
-                        :class="[
-                            'assess-tab-btn',
-                            { active: assessActiveTab === 2 },
-                        ]"
-                        @click="assessActiveTab = 2"
-                    >
-                        🩹 皮膚完整性
-                    </button>
-                </div>
-
-                <!-- 頁籤0：血管通路 -->
-                <div v-show="assessActiveTab === 0">
-                    <div class="form-label">種類</div>
-                    <div class="assess-opt-row">
-                        <span
-                            v-for="k in ['AVF', 'AVG', 'Permcath', 'D/L']"
-                            :key="k"
-                            :class="[
-                                'assess-opt',
-                                { sel: assessForm.vascularKind === k },
-                            ]"
-                            @click="assessForm.vascularKind = k"
-                        >
-                            {{ k }}
+        <!-- ① 前置整備彈窗 (100% 傳承體重彈窗風格) -->
+        <div :class="['modal-overlay', { open: showPrepModal }]" @click.self="showPrepModal = false">
+            <div class="modal-container-vsign" style="max-width: 480px;">
+                <div class="vsign-modal-hdr">
+                    <div class="vsign-hdr-left">
+                        <span class="vsign-hdr-title">
+                            <i class="ti ti-checklist"></i> 前置整備確認（依醫囑自動產生）
+                        </span>
+                        <span v-if="store.currentPatient" class="vsign-pt-badge">
+                            {{ store.currentPatient.bed || "—" }}床 | {{ store.currentPatient.name }}
                         </span>
                     </div>
-                    <div
-                        v-show="assessForm.vascularKind === 'Permcath'"
-                        style="margin-bottom: 8px"
-                    >
-                        <div class="form-label">Permcath 長度</div>
+                    <button class="vsign-close-x" @click="showPrepModal = false" title="關閉">
+                        ×
+                    </button>
+                </div>
+
+                <div class="vsign-modal-body">
+                    <div class="vsign-meta-desc">
+                        <span class="meta-icon">💡</span>
+                        <div>
+                            對照實物逐項確認就位，點擊項目勾選完成核對。
+                        </div>
+                    </div>
+
+                    <div class="vsign-sec-card">
+                        <div
+                            style="
+                                font-size: 11px;
+                                font-weight: 700;
+                                color: #475569;
+                                margin-bottom: 5px;
+                                text-transform: uppercase;
+                                letter-spacing: 0.4px;
+                            "
+                        >
+                            📦 醫器設備
+                        </div>
+                        <div
+                            v-for="item in prepItems.device"
+                            :key="item.id"
+                            :class="['prep-item', { checked: item.checked }]"
+                            @click="item.checked = !item.checked"
+                        >
+                            <div class="prep-chk">{{ item.checked ? "✓" : "" }}</div>
+                            {{ item.name }}
+                        </div>
+
+                        <div
+                            style="
+                                font-size: 11px;
+                                font-weight: 700;
+                                color: #475569;
+                                margin: 10px 0 5px;
+                                text-transform: uppercase;
+                                letter-spacing: 0.4px;
+                            "
+                        >
+                            💊 藥材耗材
+                        </div>
+                        <div
+                            v-for="item in prepItems.med"
+                            :key="item.id"
+                            :class="['prep-item', { checked: item.checked }]"
+                            @click="item.checked = !item.checked"
+                        >
+                            <div class="prep-chk">{{ item.checked ? "✓" : "" }}</div>
+                            {{ item.name }}
+                        </div>
+
+                        <div
+                            style="
+                                background: #fffbeb;
+                                border: 1px solid #fde68a;
+                                border-radius: 6px;
+                                padding: 6px 8px;
+                                font-size: 11.5px;
+                                color: #b45309;
+                                margin-top: 8px;
+                            "
+                        >
+                            ⚠️ IRON 本月未到施打週，無需準備
+                        </div>
+                    </div>
+
+                    <div class="mbtn-row" style="margin-top: 14px; margin-bottom: 0;">
+                        <button class="mbtn sec" @click="showPrepModal = false">
+                            關閉
+                        </button>
+                        <button class="mbtn pri" @click="showPrepModal = false">
+                            ✅ 全部確認就位
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ③ 透前給藥彈窗 (100% 傳承體重彈窗風格) -->
+        <div :class="['modal-overlay', { open: showDrugModal }]" @click.self="showDrugModal = false">
+            <div class="modal-container-vsign" style="max-width: 440px">
+                <div class="vsign-modal-hdr">
+                    <div class="vsign-hdr-left">
+                        <span class="vsign-hdr-title">
+                            <i class="ti ti-pill"></i> 新增透前給藥
+                        </span>
+                        <span v-if="store.currentPatient" class="vsign-pt-badge">
+                            {{ store.currentPatient.bed || "—" }}床 | {{ store.currentPatient.name }}
+                        </span>
+                    </div>
+                    <button class="vsign-close-x" @click="showDrugModal = false" title="關閉">
+                        ×
+                    </button>
+                </div>
+
+                <div class="vsign-modal-body">
+                    <div class="vsign-sec-card">
+                        <div class="form-label" style="font-weight: 700; color: #475569;">藥品名稱 (搜尋)</div>
                         <input
-                            v-model="assessForm.permcathLen"
-                            class="form-input"
                             type="text"
-                            placeholder="如：15.5 cm"
-                            style="margin-bottom: 0"
+                            class="form-input vsign-styled-input"
+                            placeholder="輸入藥名搜尋..."
+                            v-model="newDrugForm.medicine"
+                            @input="searchMedicines($event.target.value)"
                         />
-                    </div>
-                    <div class="form-label">位置 (L/R)</div>
-                    <div class="assess-opt-row">
-                        <span
-                            v-for="p in ['L\'t', 'R\'t']"
-                            :key="p"
-                            :class="[
-                                'assess-opt',
-                                { sel: assessForm.vascularPosLR === p },
-                            ]"
-                            @click="assessForm.vascularPosLR = p"
-                        >
-                            {{ p }}
-                        </span>
-                    </div>
-                    <div class="form-label">位置 (中心/導管)</div>
-                    <div class="assess-opt-row">
-                        <span
-                            v-for="p in ['SCVC', 'JVC', 'FVC']"
-                            :key="p"
-                            :class="[
-                                'assess-opt',
-                                { sel: assessForm.vascularPosCenter === p },
-                            ]"
-                            @click="assessForm.vascularPosCenter = p"
-                        >
-                            {{ p }}
-                        </span>
-                    </div>
-                    <div class="form-label">評估 (可多選)</div>
-                    <div class="assess-opt-row">
-                        <span
-                            v-for="(e, index) in evalOptions"
-                            :key="e.val"
-                            :class="[
-                                'assess-opt',
-                                {
-                                    sel: assessForm.vascularEval[index] === '1',
-                                },
-                            ]"
-                            @click="toggleVascularEval(index)"
-                        >
-                            {{ e.label }}
-                        </span>
-                    </div>
-                    <div class="form-label">備註</div>
-                    <textarea
-                        v-model="assessForm.vascularNote"
-                        class="form-input"
-                        rows="2"
-                        placeholder="血管通路備註..."
-                    ></textarea>
-                </div>
-
-                <!-- 頁籤1：意識狀態 -->
-                <div v-show="assessActiveTab === 1">
-                    <div class="form-label">意識狀態</div>
-                    <div class="assess-opt-row">
-                        <span
-                            v-for="c in consciousOptions"
-                            :key="c.val"
-                            :class="[
-                                'assess-opt',
-                                { sel: assessForm.consciousState === c.label },
-                            ]"
-                            @click="assessForm.consciousState = c.label"
-                        >
-                            {{ c.label }}
-                        </span>
-                    </div>
-                    <div class="form-label">備註</div>
-                    <textarea
-                        v-model="assessForm.consciousNote"
-                        class="form-input"
-                        rows="2"
-                        placeholder="意識狀態備註..."
-                    ></textarea>
-                </div>
-
-                <!-- 頁籤2：皮膚完整性 -->
-                <div v-show="assessActiveTab === 2">
-                    <div class="form-label">皮膚狀態</div>
-                    <div class="assess-opt-row">
-                        <span
-                            v-for="s in ['完整', '有傷口（含水泡）']"
-                            :key="s"
-                            :class="[
-                                'assess-opt',
-                                { sel: assessForm.skinState === s },
-                            ]"
-                            @click="assessForm.skinState = s"
-                        >
-                            {{ s }}
-                        </span>
-                    </div>
-                    <div class="form-row" style="margin-top: 8px">
-                        <div class="form-col">
-                            <div class="form-label">部位</div>
-                            <input
-                                v-model="assessForm.skinLocation"
-                                class="form-input"
-                                placeholder="部位..."
-                                style="margin-bottom: 0"
-                            />
+                        <div v-if="medicineOptions.length > 0" style="position: absolute; width: 360px; z-index: 999; border: 1.5px solid #99f6e4; border-radius: 6px; max-height: 150px; overflow-y: auto; background: #fff; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);">
+                            <div v-for="m in medicineOptions" :key="m.id" @click="selectMedicine(m)" style="padding: 8px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f1f5f9;" onmouseover="this.style.backgroundColor='#f0fdfa'" onmouseout="this.style.backgroundColor='transparent'">
+                                {{ m.name }}
+                            </div>
                         </div>
-                        <div class="form-col">
-                            <div class="form-label">大小（cm）</div>
-                            <input
-                                v-model="assessForm.skinSize"
-                                class="form-input"
-                                placeholder="cm..."
-                                style="margin-bottom: 0"
-                            />
-                        </div>
-                    </div>
-                    <div class="form-label">備註</div>
-                    <textarea
-                        v-model="assessForm.skinNote"
-                        class="form-input"
-                        rows="2"
-                        placeholder="皮膚狀態備註..."
-                    ></textarea>
-                </div>
 
-                <div class="mbtn-row">
-                    <button class="mbtn sec" @click="showAssessModal = false">
-                        取消
-                    </button>
-                    <button class="mbtn pri" @click="saveUnifiedAssess">
-                        ✅ 儲存評估
-                    </button>
+                        <div class="form-label" style="font-weight: 700; color: #475569; margin-top: 8px;">用量</div>
+                        <input v-model.number="newDrugForm.amount" type="number" class="form-input vsign-styled-input" />
+
+                        <div class="form-label" style="font-weight: 700; color: #475569; margin-top: 8px;">給藥途徑</div>
+                        <select v-model="newDrugForm.route_id" class="form-input vsign-styled-input">
+                            <option v-for="r in routeOptions" :key="r.id" :value="r.id">
+                                {{ r.name }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="mbtn-row" style="margin-top: 14px; margin-bottom: 0;">
+                        <button class="mbtn sec" @click="showDrugModal = false">取消</button>
+                        <button class="mbtn pri" @click="saveNewDrug">✅ 確認新增給藥</button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- ③ 生命徵象手動填寫彈窗 (五大生理參數) -->
-        <div :class="['modal-overlay', { open: showVsignModal }]">
-            <div class="modal">
-                <div class="modal-hdr">
-                    <i class="ti ti-activity"></i>On-Sign 五大生命徵象輸入
-                </div>
-                <button class="modal-x" @click="showVsignModal = false">
-                    ✕
-                </button>
-                <div class="form-row">
-                    <div class="form-col" style="flex: 1">
-                        <div class="form-label">收縮壓 Sys（mmHg）</div>
-                        <input
-                            v-model="vsignForm.sys"
-                            class="form-input"
-                            placeholder="120"
-                            style="margin-bottom: 0"
-                        />
+        <!-- ② 三大評估統一式大彈窗 (100% 傳承體重彈窗風格) -->
+        <div :class="['modal-overlay', { open: showAssessModal }]" @click.self="showAssessModal = false">
+            <div class="modal-container-vsign" style="max-width: 540px;">
+                <!-- 頂部 Header -->
+                <div class="vsign-modal-hdr">
+                    <div class="vsign-hdr-left">
+                        <span class="vsign-hdr-title">
+                            <i class="ti ti-stethoscope"></i> 透析前三大臨床評估
+                        </span>
+                        <span v-if="store.currentPatient" class="vsign-pt-badge">
+                            床號: {{ store.currentPatient.bed || "—" }} | {{ store.currentPatient.name || "未選病患" }}
+                        </span>
                     </div>
-                    <div class="form-col" style="flex: 1">
-                        <div class="form-label">舒張壓 Dia（mmHg）</div>
-                        <input
-                            v-model="vsignForm.dia"
-                            class="form-input"
-                            placeholder="80"
-                            style="margin-bottom: 0"
-                        />
-                    </div>
-                </div>
-                <div class="form-row" style="margin-top: 8px">
-                    <div class="form-col">
-                        <div class="form-label">脈搏 Pulse（次/min）</div>
-                        <input
-                            v-model="vsignForm.pr"
-                            class="form-input"
-                            placeholder="76"
-                            style="margin-bottom: 0"
-                        />
-                    </div>
-                    <div class="form-col">
-                        <div class="form-label">呼吸 Resp.（次/min）</div>
-                        <input
-                            v-model="vsignForm.rr"
-                            class="form-input"
-                            placeholder="18"
-                            style="margin-bottom: 0"
-                        />
-                    </div>
-                </div>
-                <div class="form-row" style="margin-top: 8px">
-                    <div class="form-col">
-                        <div class="form-label">體溫 Temp.（°C）</div>
-                        <input
-                            v-model="vsignForm.temp"
-                            class="form-input"
-                            placeholder="36.5"
-                            style="margin-bottom: 0"
-                        />
-                    </div>
-                    <div
-                        v-if="store.currentPatient.hasFSOrder"
-                        class="form-col"
-                    >
-                        <div class="form-label">血糖 F/S（mg/dL）</div>
-                        <input
-                            v-model="vsignForm.fs"
-                            class="form-input"
-                            placeholder="100"
-                            style="margin-bottom: 0"
-                        />
-                    </div>
-                </div>
-                <div class="mbtn-row">
-                    <button class="mbtn sec" @click="showVsignModal = false">
-                        取消
+                    <button class="vsign-close-x" @click="showAssessModal = false" title="關閉">
+                        ×
                     </button>
-                    <button class="mbtn pri" @click="saveVsignForm">
-                        ✅ 確認送出
+                </div>
+
+                <!-- 彈窗內容 Body -->
+                <div class="vsign-modal-body">
+                    <!-- 提示條 -->
+                    <div class="vsign-meta-desc">
+                        <span class="meta-icon">💡</span>
+                        <div>
+                            <b>固定位置 CSV 編碼存證</b>：請逐項切換頁籤確認血管通路、意識與皮膚狀態，資料將自動編碼存入資料庫以供臨床查核。
+                        </div>
+                    </div>
+
+                    <!-- 三分頁切換膠囊按鈕 (體重彈窗風格) -->
+                    <div class="cat-pill-switch" style="display: flex; gap: 4px; margin-bottom: 12px;">
+                        <button
+                            type="button"
+                            :class="[
+                                'assess-tab-btn',
+                                { active: assessActiveTab === 0 },
+                            ]"
+                            @click="assessActiveTab = 0"
+                        >
+                            🌿 血管通路
+                        </button>
+                        <button
+                            type="button"
+                            :class="[
+                                'assess-tab-btn',
+                                { active: assessActiveTab === 1 },
+                            ]"
+                            @click="assessActiveTab = 1"
+                        >
+                            🧠 意識狀態
+                        </button>
+                        <button
+                            type="button"
+                            :class="[
+                                'assess-tab-btn',
+                                { active: assessActiveTab === 2 },
+                            ]"
+                            @click="assessActiveTab = 2"
+                        >
+                            🩹 皮膚完整性
+                        </button>
+                    </div>
+
+                    <!-- 頁籤0：血管通路 -->
+                    <div v-show="assessActiveTab === 0" class="vsign-sec-card">
+                        <div class="vsign-sec-lbl">
+                            <i class="ti ti-dna"></i> 血管通路評估
+                        </div>
+                        <div class="form-label" style="font-weight: 700; color: #475569;">種類</div>
+                        <div class="assess-opt-row">
+                            <span
+                                v-for="k in ['AVF', 'AVG', 'Permcath', 'D/L']"
+                                :key="k"
+                                :class="[
+                                    'assess-opt',
+                                    { sel: assessForm.vascularKind === k },
+                                ]"
+                                @click="assessForm.vascularKind = k"
+                            >
+                                {{ k }}
+                            </span>
+                        </div>
+                        <div
+                            v-show="assessForm.vascularKind === 'Permcath'"
+                            style="margin-bottom: 8px"
+                        >
+                            <div class="form-label" style="font-weight: 700; color: #475569;">Permcath 長度</div>
+                            <input
+                                v-model="assessForm.permcathLen"
+                                class="form-input vsign-styled-input"
+                                type="text"
+                                placeholder="如：15.5 cm"
+                                style="margin-bottom: 0"
+                            />
+                        </div>
+                        <div class="form-label" style="font-weight: 700; color: #475569;">位置 (L/R)</div>
+                        <div class="assess-opt-row">
+                            <span
+                                v-for="p in ['L\'t', 'R\'t']"
+                                :key="p"
+                                :class="[
+                                    'assess-opt',
+                                    { sel: assessForm.vascularPosLR === p },
+                                ]"
+                                @click="assessForm.vascularPosLR = p"
+                            >
+                                {{ p }}
+                            </span>
+                        </div>
+                        <div class="form-label" style="font-weight: 700; color: #475569;">位置 (中心/導管)</div>
+                        <div class="assess-opt-row">
+                            <span
+                                v-for="p in ['SCVC', 'JVC', 'FVC']"
+                                :key="p"
+                                :class="[
+                                    'assess-opt',
+                                    { sel: assessForm.vascularPosCenter === p },
+                                ]"
+                                @click="assessForm.vascularPosCenter = p"
+                            >
+                                {{ p }}
+                            </span>
+                        </div>
+                        <div class="form-label" style="font-weight: 700; color: #475569;">評估 (可多選)</div>
+                        <div class="assess-opt-row">
+                            <span
+                                v-for="(e, index) in evalOptions"
+                                :key="e.val"
+                                :class="[
+                                    'assess-opt',
+                                    {
+                                        sel: assessForm.vascularEval[index] === '1',
+                                    },
+                                ]"
+                                @click="toggleVascularEval(index)"
+                            >
+                                {{ e.label }}
+                            </span>
+                        </div>
+                        <div class="form-label" style="font-weight: 700; color: #475569;">備註</div>
+                        <textarea
+                            v-model="assessForm.vascularNote"
+                            class="form-input vsign-styled-input"
+                            rows="2"
+                            placeholder="填寫血管通路備註..."
+                            style="margin-bottom: 0;"
+                        ></textarea>
+                    </div>
+
+                    <!-- 頁籤1：意識狀態 -->
+                    <div v-show="assessActiveTab === 1" class="vsign-sec-card">
+                        <div class="vsign-sec-lbl">
+                            <i class="ti ti-brain"></i> 意識狀態評估
+                        </div>
+                        <div class="form-label" style="font-weight: 700; color: #475569;">意識狀態</div>
+                        <div class="assess-opt-row">
+                            <span
+                                v-for="c in consciousOptions"
+                                :key="c.val"
+                                :class="[
+                                    'assess-opt',
+                                    { sel: assessForm.consciousState === c.label },
+                                ]"
+                                @click="assessForm.consciousState = c.label"
+                            >
+                                {{ c.label }}
+                            </span>
+                        </div>
+                        <div class="form-label" style="font-weight: 700; color: #475569;">備註</div>
+                        <textarea
+                            v-model="assessForm.consciousNote"
+                            class="form-input vsign-styled-input"
+                            rows="2"
+                            placeholder="填寫意識狀態備註..."
+                            style="margin-bottom: 0;"
+                        ></textarea>
+                    </div>
+
+                    <!-- 頁籤2：皮膚完整性 -->
+                    <div v-show="assessActiveTab === 2" class="vsign-sec-card">
+                        <div class="vsign-sec-lbl">
+                            <i class="ti ti-bandage"></i> 皮膚完整性評估
+                        </div>
+                        <div class="form-label" style="font-weight: 700; color: #475569;">皮膚狀態</div>
+                        <div class="assess-opt-row">
+                            <span
+                                v-for="s in ['完整', '有傷口（含水泡）']"
+                                :key="s"
+                                :class="[
+                                    'assess-opt',
+                                    { sel: assessForm.skinState === s },
+                                ]"
+                                @click="assessForm.skinState = s"
+                            >
+                                {{ s }}
+                            </span>
+                        </div>
+                        <div class="form-row" style="margin-top: 8px">
+                            <div class="form-col" style="flex: 1">
+                                <div class="form-label" style="font-weight: 700; color: #475569;">部位</div>
+                                <input
+                                    v-model="assessForm.skinLocation"
+                                    class="form-input vsign-styled-input"
+                                    placeholder="輸入部位..."
+                                    style="margin-bottom: 0"
+                                />
+                            </div>
+                            <div class="form-col" style="flex: 1">
+                                <div class="form-label" style="font-weight: 700; color: #475569;">大小（cm）</div>
+                                <input
+                                    v-model="assessForm.skinSize"
+                                    class="form-input vsign-styled-input"
+                                    placeholder="輸入大小..."
+                                    style="margin-bottom: 0"
+                                />
+                            </div>
+                        </div>
+                        <div class="form-label" style="font-weight: 700; color: #475569; margin-top: 8px;">備註</div>
+                        <textarea
+                            v-model="assessForm.skinNote"
+                            class="form-input vsign-styled-input"
+                            rows="2"
+                            placeholder="填寫皮膚狀態備註..."
+                            style="margin-bottom: 0;"
+                        ></textarea>
+                    </div>
+
+                    <!-- 底部按鈕列 -->
+                    <div class="mbtn-row" style="margin-top: 14px; margin-bottom: 0;">
+                        <button class="mbtn sec" @click="showAssessModal = false">
+                            取消
+                        </button>
+                        <button class="mbtn pri" @click="saveUnifiedAssess">
+                            ✅ 儲存三大評估
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ③ 生命徵象手動填寫彈窗 (五大生理參數 - 採用與體重彈窗一致的設計語言) -->
+        <div :class="['modal-overlay', { open: showVsignModal }]" @click.self="showVsignModal = false">
+            <div class="modal-container-vsign">
+                <!-- 頂部 Header -->
+                <div class="vsign-modal-hdr">
+                    <div class="vsign-hdr-left">
+                        <span class="vsign-hdr-title">
+                            <i class="ti ti-activity"></i> On-Sign 五大生命徵象輸入
+                        </span>
+                        <span v-if="store.currentPatient" class="vsign-pt-badge">
+                            床號: {{ store.currentPatient.bed || "—" }} | {{ store.currentPatient.name || "未選病患" }}
+                        </span>
+                    </div>
+                    <button class="vsign-close-x" @click="showVsignModal = false" title="關閉">
+                        ×
                     </button>
+                </div>
+
+                <!-- 彈窗內容 Body -->
+                <div class="vsign-modal-body">
+                    <!-- 提示條 -->
+                    <div class="vsign-meta-desc">
+                        <span class="meta-icon">💡</span>
+                        <div>
+                            <b>臨床數值防呆錄入</b>：血壓請分別輸入收縮壓與舒張壓，有血糖醫囑時請核實輸入 F/S 數值。
+                        </div>
+                    </div>
+
+                    <!-- 區塊一：血壓數值 (Sys / Dia) -->
+                    <div class="vsign-sec-card">
+                        <div class="vsign-sec-lbl">
+                            <i class="ti ti-heart-rate-monitor"></i> 血壓量測 BP (mmHg)
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col" style="flex: 1">
+                                <div class="form-label" style="color: #0f766e; font-weight: 700;">收縮壓 Sys</div>
+                                <input
+                                    v-model="vsignForm.sys"
+                                    class="form-input vsign-styled-input"
+                                    placeholder="如 120"
+                                    style="margin-bottom: 0"
+                                />
+                            </div>
+                            <div class="form-col" style="flex: 1">
+                                <div class="form-label" style="color: #0f766e; font-weight: 700;">舒張壓 Dia</div>
+                                <input
+                                    v-model="vsignForm.dia"
+                                    class="form-input vsign-styled-input"
+                                    placeholder="如 80"
+                                    style="margin-bottom: 0"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 區塊二：脈搏、呼吸、體溫與血糖 -->
+                    <div class="vsign-sec-card" style="margin-top: 10px;">
+                        <div class="vsign-sec-lbl">
+                            <i class="ti ti-stethoscope"></i> 其他生理指標
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col" style="flex: 1">
+                                <div class="form-label">脈搏 Pulse (次/min)</div>
+                                <input
+                                    v-model="vsignForm.pr"
+                                    class="form-input vsign-styled-input"
+                                    placeholder="如 76"
+                                    style="margin-bottom: 0"
+                                />
+                            </div>
+                            <div class="form-col" style="flex: 1">
+                                <div class="form-label">呼吸 Resp. (次/min)</div>
+                                <input
+                                    v-model="vsignForm.rr"
+                                    class="form-input vsign-styled-input"
+                                    placeholder="如 18"
+                                    style="margin-bottom: 0"
+                                />
+                            </div>
+                        </div>
+                        <div class="form-row" style="margin-top: 8px">
+                            <div class="form-col" style="flex: 1">
+                                <div class="form-label">體溫 Temp. (°C)</div>
+                                <input
+                                    v-model="vsignForm.temp"
+                                    class="form-input vsign-styled-input"
+                                    placeholder="如 36.5"
+                                    style="margin-bottom: 0"
+                                />
+                            </div>
+                            <div
+                                v-if="store.currentPatient.hasFSOrder"
+                                class="form-col"
+                                style="flex: 1"
+                            >
+                                <div class="form-label" style="color: #d97706; font-weight: 700;">血糖 F/S (mg/dL) *</div>
+                                <input
+                                    v-model="vsignForm.fs"
+                                    class="form-input vsign-styled-input"
+                                    placeholder="如 100"
+                                    style="margin-bottom: 0; border-color: #fcd34d; background: #fffdf5;"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 底部按鈕列 -->
+                    <div class="mbtn-row" style="margin-top: 14px; margin-bottom: 0;">
+                        <button class="mbtn sec" @click="showVsignModal = false">
+                            取消
+                        </button>
+                        <button class="mbtn pri" @click="saveVsignForm">
+                            ✅ 確認儲存數值
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -675,7 +795,7 @@ const showPrepModal = ref(false);
 const showAssessModal = ref(false);
 const showVsignModal = ref(false);
 const assessActiveTab = ref(0);
-const isDoubleSigned = ref(false);
+const isDoubleSigned = ref(false); // 相容歷史引用
 
 // 靜態整備常組清單
 const prepItems = ref({
@@ -1088,37 +1208,117 @@ const deletePreDrug = (idx) => {
     preDrugs.value[idx].isDeleted = true;
 };
 
-// 執行簽章與雙人連動
-const executeMainOnSign = () => {
+// 執行簽章與雙人連動（持久化至 patient_checks 資料表之 prepare_nurse_id 與 check_nurse_id）
+const executeMainOnSign = async () => {
     if (isSignDisabled.value) return;
-    store.mainSigned = !store.mainSigned;
+
     if (store.mainSigned) {
-        store.addNursingRecord(
-            `[上針簽章] 主責護理師楚心瑜完成當班 On-Sign 具名核簽，生理參數與過磅記錄上鎖。`,
-        );
+        if (!confirm("⚠️ 確定要解除主責護理師 On-Sign 簽章嗎？若已有雙簽也將一併解除。")) {
+            return;
+        }
+        await store.executeOnSign("main", "unsign");
+    } else {
+        const res = await store.executeOnSign("main", "sign");
+        if (!res.success) {
+            alert(res.message || "簽章失敗");
+        }
     }
 };
 
-const triggerDoubleSign = () => {
-    isDoubleSigned.value = !isDoubleSigned.value;
-    if (isDoubleSigned.value) {
-        store.addNursingRecord(
-            `[雙人雙簽] 雙簽核對護理師王曉明臨櫃覆核通過完成 Double Sign。`,
-        );
+const triggerDoubleSign = async () => {
+    if (!store.mainSigned) {
+        alert("⚠️ 流程防呆：需先由主責護理師完成 On-Sign 後，才可由第二位護理師進行 Double Sign 雙簽！");
+        return;
+    }
+
+    if (store.doubleSigned) {
+        if (!confirm("⚠️ 確定要解除雙簽護理師 Double Sign 覆核嗎？")) {
+            return;
+        }
+        await store.executeOnSign("double", "unsign");
+    } else {
+        const res = await store.executeOnSign("double", "sign");
+        if (!res.success) {
+            alert(res.message || "雙簽失敗");
+        }
     }
 };
 
 // 監聽選中病患切換
 watch(
-    () => store.currentPatient.bed,
+    () => store.currentPatient?.id,
     () => {
-        isDoubleSigned.value = false;
+        // 切換病患時資料由 selectPatient 自動自後端加載更新
     },
-    { deep: true },
 );
 </script>
 
 <style scoped>
+.print-btn{
+    background:white;
+    color:var(--slate);
+    border:1.5px solid var(--border);
+    border-radius:7px;
+    padding:4px 8px;
+    font-size:11px;
+    font-weight:600;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:3px;
+    white-space:nowrap;
+}
+.incident-btn{
+    background:var(--purple);
+    color:white;
+    border:none;
+    border-radius:8px;
+    padding:5px 10px;
+    font-size:11px;
+    font-weight:700;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:3px;
+    white-space:nowrap;
+}
+
+/* ════ 100% 導入原稿 hismp_nursing_ui_v24.html 核心樣式 ════ */
+.onsign-tab-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.confirm-bar {
+    background: #f0fdf4;
+    border: 1.5px solid #86efac; border:1.5px solid var(--border);
+    border-radius:7px;
+    padding:4px 8px;
+    font-size:11px;
+    font-weight:600;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:3px;
+    white-space:nowrap;
+}
+.incident-btn{
+    background:var(--purple);
+    color:white;
+    border:none;
+    border-radius:8px;
+    padding:5px 10px;
+    font-size:11px;
+    font-weight:700;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:3px;
+    white-space:nowrap;
+}
+
 /* ════ 100% 導入原稿 hismp_nursing_ui_v24.html 核心樣式 ════ */
 .onsign-tab-wrapper {
     display: flex;
@@ -1130,8 +1330,6 @@ watch(
 .confirm-bar {
     background: #f0fdf4;
     border: 1.5px solid #86efac;
-    border-radius: 7px;
-    padding: 6px 10px;
     margin-bottom: 8px;
     display: flex;
     align-items: center;
@@ -1346,26 +1544,153 @@ watch(
     font-size: 14px;
     font-weight: 700;
     color: #1e293b;
-    margin-bottom: 11px;
+    margin-bottom: 14px;
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    padding-right: 36px; /* 留出右上角關閉按鈕空間，徹底防範遮擋 */
     gap: 6px;
+    line-height: 1.4;
 }
 .modal-x {
     position: absolute;
-    top: 12px;
-    right: 12px;
-    background: #b91c1c;
-    border: none;
-    color: white;
-    width: 24px;
-    height: 24px;
-    border-radius: 4px;
+    top: 14px;
+    right: 14px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #64748b;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 13px;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.15s ease;
+    z-index: 2;
+}
+.modal-x:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #dc2626;
+}
+
+/* ════ 生命徵象輸入彈窗（100% 傳承體重彈窗風格） ════ */
+.modal-container-vsign {
+    width: 94%;
+    max-width: 520px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.25);
+    border: 1.5px solid #99f6e4;
+    overflow: hidden;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.vsign-modal-hdr {
+    padding: 11px 16px;
+    background: #f0fdfa;
+    border-bottom: 1px solid #ccfbf1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #0f766e;
+}
+
+.vsign-hdr-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.vsign-hdr-title {
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.vsign-pt-badge {
+    background: #ccfbf1;
+    color: #115e59;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 11.5px;
+    font-weight: 600;
+}
+
+.vsign-close-x {
+    background: none;
+    border: none;
+    color: #0f766e;
+    font-size: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    padding: 0 4px;
+    line-height: 1;
+    transition: color 0.15s ease;
+}
+
+.vsign-close-x:hover {
+    color: #b91c1c;
+}
+
+.vsign-modal-body {
+    padding: 14px 16px;
+    overflow-y: auto;
+    font-size: 13px;
+    flex: 1;
+}
+
+.vsign-meta-desc {
+    color: #475569;
+    background: #f8fafc;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.vsign-sec-card {
+    background: #fafaf9;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.vsign-sec-lbl {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.vsign-styled-input {
+    border: 1.5px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    background: #ffffff;
+    transition: all 0.15s ease;
+}
+
+.vsign-styled-input:focus {
+    border-color: #0f766e !important;
+    box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.15);
 }
 
 .prep-item {
@@ -1401,22 +1726,28 @@ watch(
     font-size: 10px;
 }
 
-/* 統一評估分頁樣式 */
+/* 統一評估分頁樣式 (對齊體重彈窗切換膠囊風格) */
 .assess-tab-btn {
     flex: 1;
-    padding: 6px;
-    border: 2px solid #e2e8f0;
+    padding: 7px 10px;
+    border: 1.5px solid #cbd5e1;
     border-radius: 6px;
-    background: white;
+    background: #f8fafc;
     color: #475569;
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 700;
     cursor: pointer;
+    transition: all 0.15s ease;
+}
+.assess-tab-btn:hover:not(.active) {
+    background: #f1f5f9;
+    border-color: #94a3b8;
 }
 .assess-tab-btn.active {
     border-color: #0f766e;
     background: #0f766e;
     color: white;
+    box-shadow: 0 2px 4px rgba(15, 118, 110, 0.2);
 }
 .assess-opt-row {
     display: flex;
@@ -1425,19 +1756,26 @@ watch(
     margin-bottom: 8px;
 }
 .assess-opt {
-    font-size: 11px;
-    border: 1.5px solid #e2e8f0;
+    font-size: 11.5px;
+    border: 1.5px solid #cbd5e1;
     border-radius: 14px;
-    padding: 3px 10px;
+    padding: 3px 12px;
     cursor: pointer;
     background: white;
     color: #475569;
     user-select: none;
+    font-weight: 600;
+    transition: all 0.15s ease;
+}
+.assess-opt:hover:not(.sel) {
+    background: #f1f5f9;
+    border-color: #94a3b8;
 }
 .assess-opt.sel {
     background: #0f766e;
-    color: white;
     border-color: #0f766e;
+    color: white;
+    box-shadow: 0 1px 3px rgba(15, 118, 110, 0.3);
 }
 
 .form-label {

@@ -48,9 +48,15 @@ import { useDialysisStore } from "@/store/useNurseStore";
 // 只有當 Pinia 已經在 app.use 啟用後才能安全呼叫
 const store = useDialysisStore();
 
-// 1. 從 LocalStorage 抓取權限與人員基本資料
-const roleId = localStorage.getItem("hismp_role_id") || "6";
-const userName = localStorage.getItem("hismp_user_name") || "楚心瑜";
+// 1. 從快取抓取權限與人員基本資料 (優先讀取 sessionStorage 防止多開互相覆蓋)
+const roleId =
+    sessionStorage.getItem("hismp_role_id") ||
+    localStorage.getItem("hismp_role_id") ||
+    "6";
+const userName =
+    sessionStorage.getItem("hismp_user_name") ||
+    localStorage.getItem("hismp_user_name") ||
+    "楚心瑜";
 
 const isDoctor = computed(() => roleId == "4");
 const isNurse = computed(() => roleId == "5" || roleId == "6");
@@ -90,6 +96,7 @@ const searchQueryModel = computed({
 // 4. 登出清理機制
 const handleLogout = () => {
     if (confirm("確認要安全登出透析系統並關閉當前工作站嗎？")) {
+        sessionStorage.clear();
         localStorage.clear();
         window.location.href = "/login";
     }

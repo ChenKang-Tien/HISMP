@@ -54,9 +54,17 @@ import { useDialysisStore } from "@/store/useNurseStore";
 const router = useRouter();
 const store = useDialysisStore();
 
-// 從本地快取取出權限
-const roleId = ref(localStorage.getItem("hismp_role_id") || "5");
-const userName = ref(localStorage.getItem("hismp_user_name") || "楚心瑜");
+// 從快取取出權限 (優先讀取 sessionStorage 防止多開互相覆蓋)
+const roleId = ref(
+    sessionStorage.getItem("hismp_role_id") ||
+    localStorage.getItem("hismp_role_id") ||
+    "5",
+);
+const userName = ref(
+    sessionStorage.getItem("hismp_user_name") ||
+    localStorage.getItem("hismp_user_name") ||
+    "楚心瑜",
+);
 
 // 根據路由守衛傳遞的 role_id 計算視覺色系 Class
 const themeClass = computed(() => {
@@ -81,9 +89,12 @@ const roleNameSuffix = computed(() => {
 // 全域安全登出清理機制
 const handleLogout = () => {
     if (confirm("確定要安全登出智慧透析資訊平台嗎？")) {
+        sessionStorage.clear();
         localStorage.removeItem("hismp_token");
         localStorage.removeItem("hismp_role_id");
         localStorage.removeItem("hismp_user_name");
+        localStorage.removeItem("hismp_role_name");
+        localStorage.removeItem("hismp_user_id");
         router.push("/login");
     }
 };

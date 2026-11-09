@@ -8,6 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 class PatientMidBpPDatas extends Model
 {
     use HasFactory;
+    protected $attributes = [
+        'P' => 72,
+        'machine' => 0,
+        'display' => 1,
+    ];
     protected $fillable = [
         'id',
         'patient_check_id',

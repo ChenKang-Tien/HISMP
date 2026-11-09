@@ -21,6 +21,45 @@
                             >床 {{ store.currentPatient.bedNo }}</span
                         >
                     </span>
+                    <span
+                        v-if="
+                            store.currentPatient.status === 'crit' ||
+                            store.currentPatient.isCrit
+                        "
+                        class="emg-badge-pulse"
+                        style="
+                            background: #fee2e2;
+                            color: #dc2626;
+                            border: 1.5px solid #ef4444;
+                            border-radius: 6px;
+                            padding: 2px 8px;
+                            font-size: 12px;
+                            font-weight: 800;
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 4px;
+                            animation: crit-flash 1s step-end infinite;
+                            cursor: pointer;
+                        "
+                        @click="store.openModal('emergency')"
+                        title="急救作業進行中，點擊開啟急救處置面板"
+                    >
+                        🚨 EMERGENCY 危急中
+                    </span>
+                    <span
+                        v-else
+                        style="
+                            background: #f0fdf4;
+                            color: #15803d;
+                            border: 1px solid #bbf7d0;
+                            border-radius: 6px;
+                            padding: 2px 8px;
+                            font-size: 11.5px;
+                            font-weight: 700;
+                        "
+                    >
+                        {{ store.currentPatient.statusText || "🟢 透析中" }}
+                    </span>
                     <span style="font-size: 11px; color: var(--slate-lt)">
                         {{ store.currentPatient.chartNo }} ·
                         {{ store.currentPatient.meta }}
@@ -70,9 +109,11 @@
             <button
                 class="emg-btn"
                 :class="{
-                    'emg-active': store.currentPatient.status === 'crit',
+                    'emg-active':
+                        store.currentPatient.status === 'crit' ||
+                        store.currentPatient.isCrit,
                 }"
-                @click="store.toggleEmergency()"
+                @click="handleEmergencyClick"
             >
                 <i class="ti ti-urgent"></i> EMERGENCY
             </button>
@@ -184,6 +225,22 @@
 <script setup>
 import { useDoctorStore } from "@/store/doctorStore";
 const store = useDoctorStore();
+
+const handleEmergencyClick = async () => {
+    if (!store.currentPatient) return;
+    const isCurrentlyCrit =
+        store.currentPatient.status === "crit" || store.currentPatient.isCrit;
+
+    // 若已在急救狀態，點擊直接再次喚起急救處置面板
+    if (isCurrentlyCrit) {
+        store.openModal("emergency");
+        return;
+    }
+
+    const confirmMsg = `⚠️ 確定要將病患【${store.currentPatient.name}】狀態變更為 EMERGENCY 危急狀態並啟動全院廣播嗎？`;
+    if (!confirm(confirmMsg)) return;
+    await store.toggleEmergency();
+};
 </script>
 
 <style scoped>

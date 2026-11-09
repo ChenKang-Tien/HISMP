@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 class NurseWatching extends Model
 {
     use HasFactory;
+
+    protected $table = 'nurse_watchings';
+
     protected $fillable = [
         'id',
         'patient_check_id',
@@ -19,4 +22,14 @@ class NurseWatching extends Model
         'created_at',
         'updated_at'
     ];
+
+    public function patientCheck()
+    {
+        return $this->belongsTo(PatientCheck::class, 'patient_check_id');
+    }
+
+    public function nurse()
+    {
+        return $this->belongsTo(User::class, 'nurse_id', 'id');
+    }
 }

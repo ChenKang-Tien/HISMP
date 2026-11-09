@@ -12,8 +12,15 @@ class PatientAfterMedicineDatas extends Model
         'id',
         'patient_check_id',
         'medicine_id',
+        'medicine_name',
         'amount',
+        'dose',
+        'route',
+        'adverse_reaction',
         'nurse_id',
+        'type',
+        'refuse_reason',
+        'refuse_detail',
         'created_at',
         'updated_at'
     ];

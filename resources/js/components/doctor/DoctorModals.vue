@@ -370,12 +370,29 @@
                 </div>
             </div>
         </div>
+        <!-- 緊急危急處置全院廣播面板 -->
+        <EmergencyModal
+            v-model="store.modals['emergency']"
+            :patient-name="store.currentPatient?.name"
+            :bed-no="store.currentPatient?.bedNo"
+            @end-emergency="handleEndEmergencyFromModal"
+        />
     </div>
 </template>
 
 <script setup>
 import { useDoctorStore } from "@/store/doctorStore";
+import EmergencyModal from "@/components/nurse/modals/EmergencyModal.vue";
 const store = useDoctorStore();
+
+const handleEndEmergencyFromModal = async (payload = {}) => {
+    if (
+        store.currentPatient &&
+        (store.currentPatient.status === "crit" || store.currentPatient.isCrit)
+    ) {
+        await store.toggleEmergency(payload);
+    }
+};
 </script>
 
 <style scoped>

@@ -35,6 +35,16 @@ class PatientCheck extends Model
         // 填上所有欄位
     ];
 
+    public function prepare_nurse()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'prepare_nurse_id');
+    }
+
+    public function check_nurse()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'check_nurse_id');
+    }
+
     public function patient()
     {
         return $this->hasOneThrough(
@@ -50,5 +60,10 @@ class PatientCheck extends Model
     public function patient_reservation()
     {
         return $this->belongsTo(PatientReservation::class, 'patient_reservation_id');
+    }
+
+    public function nurseWatchings()
+    {
+        return $this->hasMany(NurseWatching::class, 'patient_check_id');
     }
 }

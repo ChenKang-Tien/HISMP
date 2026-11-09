@@ -97,7 +97,7 @@
                             'ptcard',
                             {
                                 active: store.currentPatient.bed === pt.bed,
-                                crit: pt.isCrit,
+                                crit: pt.isCrit || pt.status === 'crit',
                             },
                         ]"
                         @click="store.selectPatient(pt)"
@@ -119,7 +119,7 @@
                                     :class="[
                                         'bed-no',
                                         {
-                                            red: pt.isCrit,
+                                            red: pt.isCrit || pt.status === 'crit',
                                             amber: pt.bed === '05',
                                         },
                                     ]"
@@ -127,6 +127,29 @@
                                 >
                                 <span class="mr-no">{{ pt.mr }}</span>
                                 <span class="pt-name">{{ pt.name }}</span>
+                                <span
+                                    v-if="pt.isCrit || pt.status === 'crit'"
+                                    class="emg-live-beacon"
+                                    style="
+                                        background: #e60000;
+                                        color: white;
+                                        border-radius: 4px;
+                                        padding: 1px 6px;
+                                        font-size: 10px;
+                                        font-weight: 800;
+                                        display: inline-flex;
+                                        align-items: center;
+                                        gap: 2px;
+                                        animation: pulse-beacon 0.8s infinite alternate;
+                                        margin-left: 4px;
+                                        flex-shrink: 0;
+                                        cursor: pointer;
+                                    "
+                                    @click.stop="emit('open-modal', 'emergency', pt)"
+                                    title="急救作業進行中，點擊開啟急救處置面板"
+                                >
+                                    🚨 急救中
+                                </span>
 
                                 <span
                                     class="pt-hct"
@@ -139,27 +162,47 @@
                                     <span
                                         v-if="pt.hct"
                                         style="
-                                            font-size: 9px;
+                                            font-size: 11px;
                                             background: #f0fdfa;
                                             border: 1px solid #99f6e4;
-                                            border-radius: 3px;
-                                            padding: 1px 5px;
+                                            border-radius: 4px;
+                                            padding: 2px 6px;
                                             color: #0f766e;
                                             cursor: pointer;
+                                            font-weight: 700;
                                         "
                                         @click.stop="emit('open-modal', 'hct', pt)"
+                                        title="點擊修改本週 HCT (TW)"
                                     >
-                                        TW:{{ pt.hct }}
+                                        TW:{{ (parseFloat(pt.hct) || 0).toFixed(1) }}
+                                    </span>
+                                    <span
+                                        v-else
+                                        style="
+                                            font-size: 11px;
+                                            background: #fef3c7;
+                                            border: 1px solid #fcd34d;
+                                            border-radius: 4px;
+                                            padding: 2px 6px;
+                                            color: #b45309;
+                                            cursor: pointer;
+                                            font-weight: 700;
+                                        "
+                                        @click.stop="emit('open-modal', 'hct', pt)"
+                                        title="⚠️ 尚未填寫本週 HCT，點擊快速輸入"
+                                    >
+                                        TW:—
                                     </span>
                                 </span>
 
-                                <!-- Nurse Watching -->
+                                <!-- Nurse Watching (對齊 hismp_nursing_ui_v24.html 右上角帶紅點閃爍 NW) -->
                                 <span
                                     class="cam-btn"
                                     v-if="pt.hasNW"
-                                    @click.stop="emit('open-modal', 'nw', pt)"
+                                    @click.stop="emit('open-modal', 'nwView', pt)"
+                                    title="📷 查看 Nurse Watching 影像病歷"
                                 >
-                                    📷 NW
+                                    📷 NW<span class="nw-dot"></span>
                                 </span>
 
                                 <!-- 醫囑數量 -->
@@ -176,17 +219,29 @@
 
                             <!-- 狀態提示條 (動態顯示班別與狀態) -->
                             <div
-                                :class="['sband', pt.isCrit ? 'crit' : 'dial']"
+                                :class="[
+                                    'sband',
+                                    pt.isCrit || pt.status === 'crit'
+                                        ? 'crit'
+                                        : 'dial',
+                                ]"
+                                :style="(pt.isCrit || pt.status === 'crit') ? 'cursor: pointer;' : ''"
+                                @click.stop="(pt.isCrit || pt.status === 'crit') ? emit('open-modal', 'emergency', pt) : null"
+                                :title="(pt.isCrit || pt.status === 'crit') ? '急救作業進行中，點擊開啟急救處置面板' : ''"
                             >
-                                {{ pt.statusText }}
+                                {{
+                                    pt.isCrit || pt.status === "crit"
+                                        ? "🚨 EMERGENCY 危急"
+                                        : pt.statusText
+                                }}
                             </div>
 
                             <!-- 體重資訊 -->
                             <div class="alert-item fallback" v-if="pt.weight_info">
                                 <i class="ti ti-scale"></i>
                                 乾體重: {{ pt.weight_info.dry }}kg / 透前: {{ pt.weight_info.pre }}kg
-                                <span v-if="pt.weight_info.deduction !== 0" style="color:var(--red);">
-                                    (扣重: {{ pt.weight_info.deduction }}kg)
+                                <span v-if="pt.weight_info.pre_deduction || pt.weight_info.deduction" style="color:var(--teal); font-weight: 700; margin-left: 4px;">
+                                    (扣重後: {{ ((Number(pt.weight_info.pre) || 0) + (Number(pt.weight_info.pre_deduction ?? pt.weight_info.deduction) || 0)).toFixed(1) }}kg)
                                 </span>
                             </div>
 
@@ -352,11 +407,6 @@
             </div>
         </div>
 
-        <!-- 假單審查對話盒 -->
-        <NurseWatchingModal
-            :model-value="props.activeModals.nw"
-            @update:model-value="(v) => props.activeModals.nw = v"
-        />
         <div :class="['modal-overlay', { open: showAbsenceModal }]">
             <div class="modal" style="max-width: 360px">
                 <div class="modal-hdr">
@@ -422,7 +472,6 @@ const store = useDialysisStore();
 const isFlyoutOpen = ref(false);
 const isTmrOpen = ref(false);
 const openDrawers = ref(new Set());
-import NurseWatchingModal from "@/components/nurse/modals/NurseWatchingModal.vue";
 const showAbsenceModal = ref(false);
 
 let longPressTimer = null;
@@ -430,13 +479,14 @@ const longPressTarget = ref(null);
 const selectedAbsenceType = ref(null);
 const absenceNote = ref("");
 
-const patientGroups = ref([
+const defaultPatientGroups = [
     {
         name: "A 組・楚心瑜護理師",
         color: "#0f766e",
         isMine: true,
         patients: [
             {
+                id: 1,
                 bed: "01",
                 mr: "MR9876543",
                 name: "薛玉鳳",
@@ -449,6 +499,7 @@ const patientGroups = ref([
                 vitals: { bp: "135/82", pr: "78", fs: "142", qb: "250" },
             },
             {
+                id: 2,
                 bed: "02",
                 mr: "MR223344",
                 name: "林*芳",
@@ -462,6 +513,7 @@ const patientGroups = ref([
                 vitals: { bp: "190/110", pr: "88", fs: "118", qb: "230" },
             },
             {
+                id: 3,
                 bed: "05",
                 mr: "MR445566",
                 name: "李*美",
@@ -482,6 +534,7 @@ const patientGroups = ref([
         isMine: false,
         patients: [
             {
+                id: 4,
                 bed: "07",
                 mr: "MR556677",
                 name: "陳*志",
@@ -495,7 +548,14 @@ const patientGroups = ref([
             },
         ],
     },
-]);
+];
+
+const patientGroups = computed(() => {
+    if (store.patientGroups && store.patientGroups.length > 0) {
+        return store.patientGroups;
+    }
+    return defaultPatientGroups;
+});
 
 const absentPatientsList = ref([]);
 const offsignPatients = ref([{ bed: "03", mr: "MR334455", name: "張*華" }]);
@@ -523,9 +583,14 @@ const toggleDrawer = (bed) => {
 };
 
 const openDetail = async (type, pt) => {
-    const data = await store.fetchPatientDetails(pt.mr, type);
-    console.log(`[Drawer] 開啟 ${type} 資料:`, data);
-    // 此處可連接到對應 Modal，若無則暫時 log
+    let checkId = pt.id;
+    if (!checkId && store.currentPatient?.id && store.currentPatient.id !== "—") {
+        checkId = store.currentPatient.id;
+    }
+    const data = checkId
+        ? await store.fetchDrawerDetails(checkId, type)
+        : await store.fetchPatientDetails(pt.mr, type);
+    console.log(`[Drawer] 透過 check_id ${checkId} 開啟 ${type} 資料:`, data);
     emit('open-modal', type, pt, data);
 };
 
@@ -768,16 +833,45 @@ const showLabAlert = () => {
     box-shadow: 0 0 0 3px #f0fdfa;
 }
 .ptcard.crit {
-    border-color: #fecaca;
-    animation: crit-flash 1s step-end infinite;
+    border-color: #ef4444 !important;
+    background: #fff5f5 !important;
+    animation: pulse-red-crit 1.2s infinite ease-in-out !important;
+    position: relative;
 }
-@keyframes crit-flash {
+@keyframes pulse-red-crit {
     0%,
     100% {
-        border-color: #fecaca;
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7), inset 0 0 8px rgba(239, 68, 68, 0.15);
+        border-color: #dc2626;
     }
     50% {
-        border-color: #fde68a;
+        box-shadow: 0 0 0 7px rgba(239, 68, 68, 0), inset 0 0 3px rgba(239, 68, 68, 0.05);
+        border-color: #f87171;
+    }
+}
+.sband.crit {
+    background: #e60000 !important;
+    color: #ffffff !important;
+    font-weight: 800 !important;
+    border-color: #b30000 !important;
+    animation: sband-crit-flash 1s infinite alternate !important;
+}
+@keyframes sband-crit-flash {
+    0% {
+        background: #ff1a1a;
+    }
+    100% {
+        background: #b30000;
+    }
+}
+@keyframes pulse-beacon {
+    0% {
+        transform: scale(0.95);
+        opacity: 0.85;
+    }
+    100% {
+        transform: scale(1.05);
+        opacity: 1;
     }
 }
 .grp-bar {
@@ -841,9 +935,16 @@ const showLabAlert = () => {
     background: #f5f3ff;
     border: 1px solid #ddd6fe;
     border-radius: 4px;
-    padding: 2px 5px;
+    padding: 2px 6px;
     position: relative;
     flex-shrink: 0;
+    cursor: pointer;
+    font-weight: 700;
+    white-space: nowrap;
+    transition: background-color 0.15s;
+}
+.cam-btn:hover {
+    background: #ede9fe;
 }
 .nw-dot {
     position: absolute;
@@ -851,8 +952,14 @@ const showLabAlert = () => {
     right: -3px;
     width: 7px;
     height: 7px;
-    background: #b91c1c;
+    background: #dc2626;
     border-radius: 50%;
+    animation: blink 0.8s step-end infinite;
+}
+@keyframes blink {
+    50% {
+        opacity: 0.2;
+    }
 }
 .order-badge {
     background: #b45309;
@@ -985,33 +1092,48 @@ const showLabAlert = () => {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 3px 8px;
-    color: #94a3b8;
-    font-size: 10px;
+    padding: 5px 10px;
+    color: #475569;
+    font-size: 11.5px;
+    font-weight: 600;
     background: #f8fafc;
     border-top: 1px solid #e2e8f0;
-    margin-top: 4px;
+    margin-top: 5px;
     cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s;
+}
+.drawer-toggle:hover {
+    background: #f1f5f9;
+    color: #0f766e;
 }
 .drawer-body {
     display: none;
-    padding: 5px 8px;
+    padding: 7px 8px;
     background: #f8fafc;
     border-top: 1px solid #e2e8f0;
-    gap: 3px;
+    gap: 5px;
     flex-wrap: wrap;
 }
 .drawer-body.open {
     display: flex;
 }
 .dbtn {
-    font-size: 10px;
+    font-size: 11.5px;
     color: #0f766e;
     background: white;
     border: 1px solid #99f6e4;
     border-radius: 5px;
-    padding: 2px 7px;
+    padding: 3px 8px;
     cursor: pointer;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+.dbtn:hover {
+    background: #f0fdfa;
+    border-color: #0f766e;
+    transform: translateY(-1px);
 }
 
 /* 請假住院專區 */

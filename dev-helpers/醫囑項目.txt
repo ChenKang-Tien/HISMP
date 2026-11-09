@@ -1,0 +1,14 @@
+doctor_so_items
+
+doctor_ap_sciences 理學 執行或延後
+doctor_ap_laboratories 實驗室 執行或延後
+doctor_ap_equipments 醫器 執行或延後
+doctor_ap_medicines 一般給藥 執行或延後
+doctor_ap_anothers 其他 執行或延後
+
+patient_dialysis_machine_longs 透析參數長期 確認
+patient_dialysis_machine_shorts 透析參數短期 確認
+patient_dialysis_weights 乾體重 確認
+
+patient_dialysis_medicines 透析用藥 確認
+

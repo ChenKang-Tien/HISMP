@@ -38,11 +38,14 @@
                     'ptcard',
                     {
                         active: store.selectedPatientId === patient.id,
-                        crit: patient.status === 'crit',
+                        crit:
+                            patient.status === 'crit' || patient.isCrit,
                     },
                 ]"
                 :style="
-                    patient.status === 'crit' ? 'border-color: #fca5a5;' : ''
+                    patient.status === 'crit' || patient.isCrit
+                        ? 'border-color: #fca5a5;'
+                        : ''
                 "
                 @click="store.selectPatient(patient.id)"
             >
@@ -119,6 +122,13 @@
                               ? 'wait'
                               : 'dial',
                     ]"
+                    :style="patient.status === 'crit' || patient.isCrit ? 'cursor: pointer;' : ''"
+                    @click.stop="
+                        (patient.status === 'crit' || patient.isCrit)
+                            ? (store.selectPatient(patient.id), store.openModal('emergency'))
+                            : null
+                    "
+                    :title="patient.status === 'crit' || patient.isCrit ? '急救作業進行中，點擊開啟急救處置面板' : ''"
                 >
                     <i
                         :class="[
@@ -405,21 +415,22 @@ const store = useDoctorStore();
     box-shadow: 0 0 0 3px var(--pri-lt);
 }
 
-/* 🚨 危急病患閃爍動畫紅框 */
+/* 🚨 危急病患閃爍動畫紅框與警示特效 */
 .ptcard.crit {
-    border-color: var(--red-bd);
-    animation: crit-flash 1.2s step-end infinite;
+    border-color: #ef4444 !important;
+    background: #fff5f5 !important;
+    animation: pulse-red-crit 1.2s infinite ease-in-out !important;
 }
 
-@keyframes crit-flash {
+@keyframes pulse-red-crit {
     0%,
     100% {
-        border-color: var(--red-bd);
-        box-shadow: 0 0 4px rgba(185, 28, 28, 0.1);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7), inset 0 0 8px rgba(239, 68, 68, 0.15);
+        border-color: #dc2626;
     }
     50% {
-        border-color: #ef4444;
-        box-shadow: 0 0 8px rgba(185, 28, 28, 0.25);
+        box-shadow: 0 0 0 7px rgba(239, 68, 68, 0), inset 0 0 3px rgba(239, 68, 68, 0.05);
+        border-color: #f87171;
     }
 }
 

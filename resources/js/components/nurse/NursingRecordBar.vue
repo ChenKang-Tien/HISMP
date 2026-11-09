@@ -31,24 +31,6 @@
                     flex-wrap: wrap;
                 "
             >
-                <button
-                    @click="emit('open-modal', 'equipment')"
-                    style="
-                        font-size: 10px;
-                        color: #0f766e;
-                        background: #e0f2fe;
-                        border: 1.5px solid #bae6fd;
-                        border-radius: 5px;
-                        padding: 3px 10px;
-                        font-weight: 700;
-                        cursor: pointer;
-                        transition: opacity 0.15s;
-                    "
-                    onmouseover="this.style.opacity = 0.8"
-                    onmouseout="this.style.opacity = 1"
-                >
-                    🛡️ 新增保護設備
-                </button>
 
                 <button
                     @click="emit('open-modal', 'nw')"
@@ -131,18 +113,40 @@
                     }"
                 >
                     <b style="color: #0f766e; margin-right: 6px"
-                        >[{{ rec.time }}]</b
+                        >[{{ formatTime(rec.time) }}]</b
                     >
-                    {{ rec.content }}
+                    {{ rec.content || rec.value }}
+                    <span
+                        v-if="rec.nurse"
+                        :style="{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '2px',
+                            marginLeft: '8px',
+                            fontSize: '10px',
+                            color: rec.deleted ? '#94a3b8' : '#0f766e',
+                            background: rec.deleted ? '#f1f5f9' : '#ccfbf1',
+                            border: '1px solid ' + (rec.deleted ? '#cbd5e1' : '#99f6e4'),
+                            borderRadius: '4px',
+                            padding: '1px 6px',
+                            fontWeight: '600',
+                            textDecoration: rec.deleted ? 'line-through' : 'none',
+                        }"
+                    >
+                        <i class="ti ti-user" style="font-size: 10px"></i>
+                        {{ rec.nurse }}
+                    </span>
                     <span
                         v-if="rec.deleted"
                         style="
-                            color: #ef4444;
-                            margin-left: 6px;
-                            font-style: italic;
-                            font-size: 10px;
+                            color: #dc2626;
+                            margin-left: 8px;
+                            font-size: 10.5px;
+                            font-weight: 700;
+                            text-decoration: none;
+                            display: inline-block;
                         "
-                        >{{ rec.deletedMeta }}</span
+                        >{{ rec.deletedMeta || "〈已註銷〉" }}</span
                     >
                 </span>
                 <button
@@ -182,6 +186,14 @@ import { useDialysisStore } from "@/store/useNurseStore";
 const store = useDialysisStore();
 const emit = defineEmits(["open-modal"]); // 拋出點擊事件通知主畫面
 
+const formatTime = (timeStr) => {
+    if (!timeStr) return "—";
+    if (typeof timeStr === "string" && timeStr.includes(" ")) {
+        return timeStr.split(" ")[1].substring(0, 5);
+    }
+    return String(timeStr).substring(0, 5);
+};
+
 // 篩選出需要顯示的記錄 (包含未刪除的，以及被刪除但需要留在畫面上劃線留痕的)
 const activeRecords = computed(() => store.nursingRecords);
 
@@ -211,12 +223,8 @@ const getContentStyle = (isDeleted) => {
 };
 
 // ════ 按鈕互動方法與原稿 JavaScript 對齊 ════
-const openProtectiveEquipment = () => {
-    alert("🛡️ 叫出 [新增保護設備] 臨床核對視窗");
-};
-
 const openNWCreate = () => {
-    alert("📷 叫出 [新增 Nurse Watching] 傷口與穿刺點影像病歷輸入盤");
+    emit("open-modal", "nw");
 };
 
 const openNursingRecordPopup = () => {

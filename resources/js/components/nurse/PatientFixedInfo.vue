@@ -17,13 +17,18 @@
         <div class="hct-row-layout">
             <div class="hct-box-cell bg-teal-lt border-teal-bd">
                 <div class="hct-lbl-mini text-teal font-700">LW</div>
-                <div class="hct-val text-teal">{{ store.hctLW }}%</div>
+                <div class="hct-val text-teal">{{ formatHctVal(store.hctLW) }}</div>
                 <div class="hct-lbl-mini text-slate-lt">上週</div>
             </div>
-            <div class="hct-box-cell bg-slate-ul border-default">
+            <div
+                class="hct-box-cell bg-slate-ul border-default"
+                style="cursor: pointer;"
+                @click="triggerHctModal('tw')"
+                title="點擊輸入/修改本週 HCT (TW)"
+            >
                 <div class="hct-lbl-mini text-slate font-700">TW</div>
                 <div class="hct-val" :class="hctTwColorClass">
-                    {{ store.hctTW ? store.hctTW + "%" : "—" }}
+                    {{ formatHctVal(store.hctTW) }}
                 </div>
                 <div class="hct-lbl-mini text-slate-lt">本週</div>
             </div>
@@ -31,10 +36,13 @@
             <div
                 v-if="isAtUnlocked"
                 class="hct-box-cell bg-slate-ul border-default"
+                style="cursor: pointer;"
+                @click="triggerHctModal('at')"
+                title="點擊輸入重測 HCT (AT)"
             >
                 <div class="hct-lbl-mini text-slate font-700">AT</div>
                 <div class="hct-val text-slate">
-                    {{ store.hctAT ? store.hctAT + "%" : "—" }}
+                    {{ formatHctVal(store.hctAT) }}
                 </div>
                 <div class="hct-lbl-mini text-slate-lt">重測</div>
             </div>
@@ -77,8 +85,11 @@
                     </div>
                 </div>
             </div>
-            <div class="weight-main-box bg-slate-ul border-default">
-                <div class="w-mini-hdr text-slate font-700">透後</div>
+            <div class="weight-main-box bg-slate-ul border-default" style="cursor: pointer;" @click="triggerWeightPrompt('post')" title="點擊填寫/校正透後體重">
+                <div class="w-mini-hdr text-slate font-700" style="display: flex; justify-content: space-between; align-items: center; padding: 0 4px;">
+                    <span>透後</span>
+                    <span class="edit-icon-btn" @click.stop="triggerWeightPrompt('post')" title="填寫透後體重">✏️</span>
+                </div>
                 <div class="w-sub-split">
                     <div>
                         <div class="w-val-text text-slate">
@@ -94,7 +105,7 @@
                     <div>
                         <div class="w-val-text text-slate font-700">
                             {{
-                                store.postAdjWeight
+                                store.postAdjWeight !== null && store.postAdjWeight !== undefined
                                     ? store.postAdjWeight + " kg"
                                     : "—"
                             }}
@@ -110,8 +121,8 @@
             <div class="w-detail-title">扣重池明細 (透前)</div>
             <span
                 class="edit-icon-btn"
-                @click="triggerDeductionManage"
-                title="管理扣重"
+                @click="triggerDeductionManage('pre')"
+                title="管理加減項目"
                 >✏️</span
             >
         </div>
@@ -122,21 +133,27 @@
                 class="deduct-item-row"
             >
                 <span>{{ d.name }}</span>
-                <span :class="d.weight >= 0 ? 'text-teal' : 'text-amber'">
-                    {{ d.weight >= 0 ? "+" : "-"
-                    }}{{ Math.abs(d.weight).toFixed(1) }} kg
+                <span :class="Number(d.weight) >= 0 ? 'text-teal' : 'text-amber'">
+                    {{ Number(d.weight) >= 0 ? "+" : ""
+                    }}{{ Number(d.weight).toFixed(1) }} kg
                 </span>
             </div>
             <div class="deduct-total-row">
                 <span class="text-slate-lt">合計</span>
                 <span class="text-teal font-700"
-                    >{{ store.preDeductionTotal.toFixed(1) }} kg</span
+                    >{{ (store.preDeductionTotal >= 0 ? '+' : '') + (store.preDeductionTotal || 0).toFixed(1) }} kg</span
                 >
             </div>
         </div>
 
-        <div class="w-detail-title" style="margin-top: 8px">
-            扣重池明細 (透後)
+        <div class="fh fh-flex" style="margin-top: 8px">
+            <div class="w-detail-title">扣重池明細 (透後)</div>
+            <span
+                class="edit-icon-btn"
+                @click="triggerDeductionManage('post')"
+                title="管理加減項目"
+                >✏️</span
+            >
         </div>
         <div class="fc-deduction-list">
             <div
@@ -145,15 +162,15 @@
                 class="deduct-item-row"
             >
                 <span>{{ d.name }}</span>
-                <span :class="d.weight >= 0 ? 'text-teal' : 'text-amber'">
-                    {{ d.weight >= 0 ? "+" : "-"
-                    }}{{ Math.abs(d.weight).toFixed(1) }} kg
+                <span :class="Number(d.weight) >= 0 ? 'text-teal' : 'text-amber'">
+                    {{ Number(d.weight) >= 0 ? "+" : ""
+                    }}{{ Number(d.weight).toFixed(1) }} kg
                 </span>
             </div>
             <div class="deduct-total-row">
                 <span class="text-slate-lt">合計</span>
                 <span class="text-teal font-700"
-                    >{{ store.postDeductionTotal.toFixed(1) }} kg</span
+                    >{{ (store.postDeductionTotal >= 0 ? '+' : '') + (store.postDeductionTotal || 0).toFixed(1) }} kg</span
                 >
             </div>
         </div>
@@ -187,7 +204,7 @@
             <div class="flex-1">
                 <div class="sb-lbl text-teal">今日實際調水（透析機帶入）</div>
                 <div class="sb-val text-teal font-700">
-                    <span v-if="store.actualUfWeight" class="text-teal"
+                    <span v-if="store.actualUfWeight !== null && store.actualUfWeight !== undefined" class="text-teal"
                         >{{ store.actualUfWeight }} kg</span
                     >
                     <span v-else class="text-teal-light-dash">— kg</span>
@@ -200,11 +217,6 @@
                 >✏️</span
             >
         </div>
-
-        <!-- 醫師更新乾體重模擬按鈕 -->
-        <button class="mock-notify-btn" @click="mockDoctorUpdateDryWeight">
-            🔔 模擬：醫師更新乾體重通知
-        </button>
 
         <!-- ④ 透析機（DL-093） -->
         <div class="fh"><i class="ti ti-device-heart-monitor"></i>透析機</div>
@@ -232,11 +244,26 @@ const emit = defineEmits([
     "open-deduct-modal",
     "open-weight-modal",
     "open-uf-modal",
+    "open-hct-modal",
 ]);
+
+const triggerHctModal = (type = "tw") => {
+    emit("open-hct-modal", type);
+};
+
+const formatHctVal = (val) => {
+    if (val === null || val === undefined || val === "" || val === "—") return "—";
+    const num = parseFloat(String(val).replace("%", ""));
+    return isNaN(num) ? "—" : num.toFixed(1);
+};
+
 // 判定 HCT 追加觀測是否開啟
 const isAtUnlocked = computed(() => {
-    if (!store.hctTW) return false;
-    return Math.abs(store.hctTW - store.hctLW) > 2;
+    if (!store.hctTW || !store.hctLW) return false;
+    const tw = parseFloat(String(store.hctTW).replace("%", ""));
+    const lw = parseFloat(String(store.hctLW).replace("%", ""));
+    if (isNaN(tw) || isNaN(lw)) return false;
+    return Math.abs(tw - lw) > 2;
 });
 
 // TW 數值顏色連動 Class
@@ -245,26 +272,16 @@ const hctTwColorClass = computed(() => {
     return isAtUnlocked.value ? "text-amber font-700" : "text-teal font-700";
 });
 
-const triggerWeightPrompt = () => {
-    emit("open-weight-modal"); // 發射體重彈窗訊號
+const triggerWeightPrompt = (category = "pre") => {
+    emit("open-weight-modal", category); // 發射體重彈窗訊號
 };
 
 const triggerActualUfPrompt = () => {
     emit("open-uf-modal"); // 發射調水彈窗訊號
 };
 
-const triggerDeductionManage = () => {
-    emit("open-deduct-modal"); // 扣重彈窗訊號
-};
-
-const mockDoctorUpdateDryWeight = () => {
-    if (
-        confirm(
-            "⚠️ 模擬醫師更新乾體重通知：\n張院醫師已將乾體重更新為 61.0 kg（原 59.5 kg）。\n系統將連動重新計算應調水，是否確認接收？",
-        )
-    ) {
-        store.dryWeight = 61.0;
-    }
+const triggerDeductionManage = (category = "pre") => {
+    emit("open-deduct-modal", category); // 扣重/加減項目彈窗訊號
 };
 </script>
 
@@ -313,14 +330,14 @@ const mockDoctorUpdateDryWeight = () => {
 
 /* 標題與微小元件 */
 .fh {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
-    color: #475569;
+    color: #334155;
     margin-bottom: 5px;
     display: flex;
     align-items: center;
-    gap: 3px;
-    margin-top: 4px;
+    gap: 4px;
+    margin-top: 5px;
 }
 .fh-flex {
     justify-content: space-between;
@@ -328,14 +345,14 @@ const mockDoctorUpdateDryWeight = () => {
     margin-top: 8px;
 }
 .w-detail-title {
-    font-size: 9px;
+    font-size: 12px;
     color: #475569;
     font-weight: 700;
 }
 .edit-icon-btn {
     cursor: pointer;
     color: #0f766e;
-    font-size: 12px;
+    font-size: 13.5px;
     user-select: none;
 }
 .flex-1 {
@@ -346,39 +363,42 @@ const mockDoctorUpdateDryWeight = () => {
 .hct-row-layout {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 3px;
-    margin-bottom: 4px;
+    gap: 4px;
+    margin-bottom: 5px;
 }
 .hct-box-cell {
     border-radius: 6px;
-    padding: 4px;
+    padding: 5px 3px;
     text-align: center;
     border: 1.5px solid transparent;
 }
 .hct-lbl-mini {
-    font-size: 8px;
+    font-size: 11px;
+    font-weight: 600;
 }
 .hct-val {
-    font-size: 12px;
+    font-size: 14.5px;
     font-weight: 700;
+    line-height: 1.25;
 }
 
 /* 體重核心大方塊 */
 .weight-grid-layout {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 4px;
-    margin-bottom: 5px;
+    gap: 5px;
+    margin-bottom: 6px;
 }
 .weight-main-box {
     border-radius: 7px;
-    padding: 5px;
+    padding: 6px 4px;
     text-align: center;
     border: 1.5px solid transparent;
 }
 .w-mini-hdr {
-    font-size: 8px;
+    font-size: 11.5px;
     margin-bottom: 3px;
+    font-weight: 700;
 }
 .w-sub-split {
     display: flex;
@@ -386,14 +406,17 @@ const mockDoctorUpdateDryWeight = () => {
     align-items: center;
 }
 .w-val-text {
-    font-size: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.25;
 }
 .w-lbl-sub {
-    font-size: 8px;
+    font-size: 11px;
+    font-weight: 600;
 }
 .v-line {
     border-left: 1px solid;
-    height: 16px;
+    height: 18px;
     opacity: 0.7;
 }
 
@@ -401,22 +424,22 @@ const mockDoctorUpdateDryWeight = () => {
 .fc-deduction-list {
     background: #f1f5f9;
     border-radius: 6px;
-    padding: 4px 7px;
-    margin-bottom: 5px;
-    font-size: 10px;
+    padding: 5px 8px;
+    margin-bottom: 6px;
+    font-size: 12px;
 }
 .deduct-item-row {
     display: flex;
     justify-content: space-between;
     color: #374151;
-    padding: 1px 0;
+    padding: 2px 0;
 }
 .deduct-total-row {
     display: flex;
     justify-content: space-between;
     border-top: 1px solid #e2e8f0;
-    margin-top: 2px;
-    padding-top: 2px;
+    margin-top: 3px;
+    padding-top: 3px;
     font-weight: 700;
 }
 
@@ -426,32 +449,21 @@ const mockDoctorUpdateDryWeight = () => {
     align-items: center;
     justify-content: space-between;
     border-radius: 6px;
-    padding: 4px 8px;
-    margin-bottom: 4px;
+    padding: 5px 9px;
+    margin-bottom: 5px;
     border: 1.5px solid transparent;
 }
 .sb-lbl {
-    font-size: 8px;
+    font-size: 11.5px;
+    font-weight: 600;
 }
 .sb-val {
-    font-size: 14px;
+    font-size: 15px;
+    font-weight: 700;
 }
 .sb-unit {
-    font-size: 9px;
-}
-
-/* 模擬更新按鈕 */
-.mock-notify-btn {
-    width: 100%;
-    font-size: 9px;
-    color: #b45309;
-    background: #fffbeb;
-    border: 1px dashed #fde68a;
-    border-radius: 5px;
-    padding: 3px 6px;
-    cursor: pointer;
-    margin-bottom: 6px;
-    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
 }
 
 /* 透析機唯讀格 */
@@ -468,10 +480,12 @@ const mockDoctorUpdateDryWeight = () => {
     border: 1.5px solid transparent;
 }
 .m-lbl-mini {
-    font-size: 9px;
+    font-size: 11px;
+    font-weight: 600;
 }
 .m-val-text {
-    font-size: 11px;
+    font-size: 12.5px;
+    font-weight: 700;
     color: #1e293b;
 }
 

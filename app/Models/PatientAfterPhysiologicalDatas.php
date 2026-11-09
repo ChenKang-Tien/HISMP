@@ -8,6 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 class PatientAfterPhysiologicalDatas extends Model
 {
     use HasFactory;
+    protected $attributes = [
+        'ak_clear' => 1,
+        'a_clear' => 1,
+        'v_clear' => 1,
+    ];
+
     protected $fillable = [
         'id',
         'patient_check_id',

@@ -16,56 +16,14 @@
     <!-- 💡 RWD 模式下選填的頂部病患快選膠囊條 (對齊原稿 DL-124) -->
     <div id="pill-bar" :style="{ display: isMobileOrTablet ? 'flex' : 'none' }">
         <div
+            v-for="pt in allActivePatients"
+            :key="pt.id || pt.mr"
             class="bed-pill"
-            style="background: #0f766e"
-            @click="
-                store.selectPatient({
-                    bed: '01',
-                    name: '薛玉鳳',
-                    mr: 'MR9876543',
-                })
-            "
+            :class="{ active: store.currentPatient?.id === pt.id }"
+            style="background: #0f766e; cursor: pointer"
+            @click="store.selectPatient(pt)"
         >
-            01 薛玉鳳
-        </div>
-        <div
-            class="bed-pill"
-            style="background: #b91c1c"
-            @click="
-                store.selectPatient({
-                    bed: '02',
-                    name: '林*芳',
-                    mr: 'MR223344',
-                })
-            "
-        >
-            02 林*芳
-        </div>
-        <div
-            class="bed-pill"
-            style="background: #d97706"
-            @click="
-                store.selectPatient({
-                    bed: '05',
-                    name: '李*美',
-                    mr: 'MR445566',
-                })
-            "
-        >
-            05 李*美
-        </div>
-        <div
-            class="bed-pill"
-            style="background: #7c3aed"
-            @click="
-                store.selectPatient({
-                    bed: '07',
-                    name: '陳*志',
-                    mr: 'MR556677',
-                })
-            "
-        >
-            07 陳*志
+            {{ pt.bed }} {{ pt.name }}
         </div>
     </div>
 
@@ -120,20 +78,31 @@
                         class="print-btn"
                         @click="activeModals.printLabel = true"
                     >
-                        <i class="ti ti-printer"></i>📄 列印病患聯絡溝通標籤
+                        📄 列印病患聯絡溝通標籤
                     </button>
                     <button
                         class="incident-btn"
                         @click="activeModals.incident = true"
                     >
-                        <i class="ti ti-bolt"></i>⚡ 臨床突發事件
+                        ⚡ 臨床突發事件
                     </button>
                     <button
                         class="emg-btn"
                         id="emg-btn-hdr"
-                        style="font-size: 11px; padding: 5px 10px"
+                        :class="{
+                            'pulse-red':
+                                store.currentPatient?.isCrit ||
+                                store.currentPatient?.status === 'crit',
+                        }"
+                        style="
+                            font-size: 11px;
+                            padding: 5px 10px;
+                            background: #e60000;
+                            color: white;
+                        "
+                        @click="handleNurseEmergencyBtn"
                     >
-                        <i class="ti ti-alert-triangle"></i>🚨 EMERGENCY
+                        <i class="ti ti-alert-triangle"></i> EMERGENCY
                     </button>
                 </div>
             </div>
@@ -162,9 +131,10 @@
                     :class="{ collapsed: store.isFixedColCollapsed }"
                 >
                     <PatientFixedInfo
-                        @open-deduct-modal="activeModals.deduct = true"
-                        @open-weight-modal="activeModals.weight = true"
+                        @open-deduct-modal="openWeightManagementModal"
+                        @open-weight-modal="openWeightManagementModal('pre')"
                         @open-uf-modal="activeModals.uf = true"
+                        @open-hct-modal="handleOpenHctModal"
                     />
                 </div>
 
@@ -200,6 +170,7 @@
                         <TabOffSign
                             v-if="store.activeTab === 2"
                             key="off-sign"
+                            @open-weight-modal="openWeightManagementModal"
                         />
                     </div>
                 </div>
@@ -240,7 +211,9 @@
             <div class="bs-spacer-r"></div>
         </div>
         <div class="bs-sheet-body">
-            <NursingRecordBar />
+            <NursingRecordBar
+                @open-modal="(type) => (activeModals[type] = true)"
+            />
         </div>
     </div>
 
@@ -284,23 +257,32 @@
     <BasicInfoModal
         v-model="activeModals.basicInfo"
         :patient="modalTargetPatient"
+        :detailData="activeDrawerDetailData"
     />
     <OrderSheetModal
         v-model="activeModals.orderSheet"
         :patient="modalTargetPatient"
+        :detailData="activeDrawerDetailData"
     />
     <VascularSheetModal
         v-model="activeModals.vascular"
         :patient="modalTargetPatient"
+        :detailData="activeDrawerDetailData"
     />
     <AnemiaSheetModal
         v-model="activeModals.anemia"
         :patient="modalTargetPatient"
+        :detailData="activeDrawerDetailData"
     />
-    <LabSheetModal v-model="activeModals.lab" :patient="modalTargetPatient" />
+    <LabSheetModal
+        v-model="activeModals.lab"
+        :patient="modalTargetPatient"
+        :detailData="activeDrawerDetailData"
+    />
     <LongtermOrderModal
         v-model="activeModals.longterm"
         :patient="modalTargetPatient"
+        :detailData="activeDrawerDetailData"
     />
 
     <AbsenceLeaveModal
@@ -309,19 +291,22 @@
         @confirm="handleAbsenceSubmit"
     />
 
-    <ProtectiveEquipmentModal
-        v-model="activeModals.equipment"
+    <NurseWatchingModal
+        v-model="activeModals.nw"
+        :patient="modalTargetPatient"
         @confirm="handleNursingRecordSubmit"
     />
 
-    <NurseWatchingModal
-        v-model="activeModals.nw"
-        @confirm="handleNursingRecordSubmit"
+    <NurseWatchingViewModal
+        v-model="activeModals.nwView"
+        :patient="modalTargetPatient"
+        @open-create="activeModals.nw = true"
     />
 
     <HctEntryModal
         v-model="activeModals.hct"
-        :initialValue="modalTargetPatient?.hct"
+        :initialValue="modalTargetPatient?.hct || store.hctTW"
+        :patient="modalTargetPatient || store.currentPatient"
         @confirm="handleHctSubmit"
     />
 
@@ -330,9 +315,10 @@
         @confirm="handleNursingRecordSubmit"
     />
 
-    <WeightDeductionModal v-model="activeModals.deduct" />
-
-    <WeightManagementModal v-model="activeModals.weight" />
+    <WeightManagementModal
+        v-model="activeModals.weight"
+        :initial-category="weightModalCategory"
+    />
 
     <UfManagementModal v-model="activeModals.uf" />
 
@@ -344,6 +330,12 @@
         v-model="activeModals.incident"
         :patient="modalTargetPatient"
         @confirm="handleIncidentSubmit"
+    />
+    <EmergencyModal
+        v-model="activeModals.emergency"
+        :patient-name="store.currentPatient?.name"
+        :bed-no="store.currentPatient?.bed"
+        @end-emergency="handleEndEmergencyFromNurse"
     />
     <PrintLabelModal
         v-model="activeModals.printLabel"
@@ -374,12 +366,13 @@ import LabSheetModal from "../components/nurse/modals/LabSheetModal.vue";
 import LongtermOrderModal from "../components/nurse/modals/LongtermOrderModal.vue";
 
 import AbsenceLeaveModal from "../components/nurse/modals/AbsenceLeaveModal.vue";
-import ProtectiveEquipmentModal from "../components/nurse/modals/ProtectiveEquipmentModal.vue";
 import NurseWatchingModal from "../components/nurse/modals/NurseWatchingModal.vue";
+import NurseWatchingViewModal from "../components/nurse/modals/NurseWatchingViewModal.vue";
 import HctEntryModal from "../components/nurse/modals/HctEntryModal.vue";
 import AddNursingRecordModal from "../components/nurse/modals/AddNursingRecordModal.vue";
 import WeightDeductionModal from "../components/nurse/modals/WeightDeductionModal.vue";
 import ExtraMeasurementModal from "../components/nurse/modals/ExtraMeasurementModal.vue";
+import EmergencyModal from "../components/nurse/modals/EmergencyModal.vue";
 import IncidentModal from "../components/nurse/modals/IncidentModal.vue";
 import PrintLabelModal from "../components/nurse/modals/PrintLabelModal.vue";
 import SupplyTmrModal from "../components/nurse/modals/SupplyTmrModal.vue";
@@ -401,15 +394,16 @@ const store = useDialysisStore();
 // 在 DialysisNursing.vue 的 reactive 定義中
 const activeModals = reactive({
     absence: false,
-    equipment: false,
     record: false,
     deduct: false,
     weight: false,
     uf: false,
     dialysisRecord: false,
     nw: false,
+    nwView: false,
     extra: false,
     incident: false,
+    emergency: false,
     printLabel: false,
     supplyTmr: false,
     hct: false,
@@ -422,15 +416,63 @@ const activeModals = reactive({
     nursingShift: false, // 💡 新增排班彈窗狀態
 });
 const modalTargetPatient = ref(null);
+const activeDrawerDetailData = ref(null);
 
-const handleOpenModal = (type, pt = null) => {
+const weightModalCategory = ref("pre");
+const openWeightManagementModal = (category = "pre") => {
+    weightModalCategory.value = typeof category === "string" ? category : "pre";
+    activeModals.weight = true;
+};
+
+watch(
+    () => activeModals.deduct,
+    (val) => {
+        if (val) {
+            activeModals.deduct = false;
+            openWeightManagementModal("pre");
+        }
+    },
+);
+
+const handleOpenModal = (type, pt = null, data = null) => {
     console.log("DialysisNursing: handleOpenModal triggered with type:", type);
-    console.log("activeModals status before:", JSON.stringify(activeModals));
-    console.log("test");
-    activeModals[type] = true;
-    if (pt) modalTargetPatient.value = pt;
+    if (pt) {
+        modalTargetPatient.value = pt;
+        store.selectPatient(pt);
+    }
 
-    console.log("activeModals status after:", JSON.stringify(activeModals));
+    if (data) {
+        activeDrawerDetailData.value = data;
+    } else if (["basicInfo", "orderSheet", "vascular", "anemia", "lab", "longterm"].includes(type)) {
+        const checkId = pt?.id || modalTargetPatient.value?.id || store.currentPatient?.id;
+        if (checkId && checkId !== "—") {
+            store.fetchDrawerDetails(checkId, type).then((d) => {
+                if (d) activeDrawerDetailData.value = d;
+            });
+        } else {
+            const target = pt || modalTargetPatient.value || store.currentPatient;
+            if (target?.mr) {
+                store.fetchPatientDetails(target.mr, type).then((d) => {
+                    activeDrawerDetailData.value = d;
+                });
+            }
+        }
+    }
+
+    if (type === "nwView") {
+        const target = pt || store.currentPatient;
+        if (target && !target.hasNW && (!store.nurseWatchings || store.nurseWatchings.length === 0)) {
+            const toast = document.createElement("div");
+            toast.style.cssText =
+                "position:fixed;top:60px;right:20px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 14px;font-size:12px;color:#475569;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.08);";
+            toast.innerHTML = "📷 本病患尚無 Nurse Watching 記錄";
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+            return;
+        }
+    }
+
+    activeModals[type] = true;
 };
 
 // 視窗大小即時監測
@@ -443,14 +485,29 @@ const handleResize = () => {
     windowHeight.value = window.innerHeight;
 };
 
-onMounted(() => {
-    window.addEventListener("resize", handleResize);
-    // 初始化時如果解析度本來就小，依據原稿規則自動將過磅側欄收合
-    if (windowWidth.value < 1024) {
-        store.isFixedColCollapsed = true;
+const loadMonitoringData = async () => {
+    const data = await store.fetchMonitoringData(store.currentPatient.id);
+    if (data.length > 0) {
+        console.log("Loaded monitoring data:", data);
+        // Mapping example logic
     }
+};
 
-    store.fetchTodayShiftPatients();
+const allActivePatients = computed(() => {
+    return (store.patientGroups || []).flatMap((g) => g.patients || []);
+});
+
+onMounted(async () => {
+    // 初始化載入排班病患列表
+    await store.fetchTodayShiftPatients();
+    // 若有病患且尚未選定有效病患，自動選取第一位
+    const firstPt = allActivePatients.value[0];
+    if (
+        firstPt &&
+        (!store.currentPatient?.id || store.currentPatient.id === "—")
+    ) {
+        await store.selectPatient(firstPt);
+    }
 });
 
 onUnmounted(() => {
@@ -484,15 +541,46 @@ const handleNursingRecordSubmit = async (formData) => {
         "DialysisNursing: handleNursingRecordSubmit called with:",
         formData,
     );
-    await store.addNursingRecord(formData.content, formData.time);
+    await store.addNursingRecord(
+        formData.content,
+        formData.time,
+        formData.nurse,
+    );
+};
+
+const handleOpenHctModal = (type = "tw") => {
+    modalTargetPatient.value = store.currentPatient;
+    activeModals.hct = true;
 };
 
 const handleHctSubmit = (val) => {
-    alert(`🩸 Hct 已更新為 ${val}%`);
-    store.addNursingRecord(`[Hct 更新] 數值更新為 ${val}%`);
+    alert(`🩸 Hct 已更新為 ${val}`);
 };
 
 // 🟢 事件 4：追加監控網格動態临时加測抄表時段
+const handleNurseEmergencyBtn = async () => {
+    if (!store.currentPatient) return;
+    const isCurrentlyCrit =
+        store.currentPatient.isCrit || store.currentPatient.status === "crit";
+    if (isCurrentlyCrit) {
+        activeModals.emergency = true;
+        return;
+    }
+    const confirmMsg = `⚠️ 確定要將病患【${store.currentPatient.name}】狀態變更為 EMERGENCY 危急狀態並啟動全院急救廣播嗎？`;
+    if (!confirm(confirmMsg)) return;
+
+    const res = await store.toggleEmergency(store.currentPatient.id);
+    if (res?.status === 4 || res?.is_crit) {
+        activeModals.emergency = true;
+    }
+};
+
+const handleEndEmergencyFromNurse = async (payload = {}) => {
+    if (store.currentPatient?.id) {
+        await store.toggleEmergency(store.currentPatient.id, payload);
+    }
+};
+
 const handleExtraGridRowSubmit = (extraData) => {
     // 將時段推入本地 careSign 網格中，並即時向後端發送同步
     const timeKey = extraData.target_time;
@@ -507,8 +595,9 @@ const handleExtraGridRowSubmit = (extraData) => {
 };
 
 const handleIncidentSubmit = async (type) => {
-    if (!modalTargetPatient.value) return;
-    await store.reportIncident(modalTargetPatient.value.mr, type);
+    const target = modalTargetPatient.value?.id || modalTargetPatient.value?.mr || store.currentPatient?.id;
+    if (!target) return;
+    await store.reportIncident(target, type);
     activeModals.incident = false;
 };
 
@@ -708,47 +797,44 @@ const closeAllBS = () => {
     flex-shrink: 0;
 }
 
-.print-btn {
-    background: white;
-    color: #475569;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 7px;
-    padding: 4px 8px;
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    white-space: nowrap;
-}
-.incident-btn {
-    background: #7c3aed;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 5px 10px;
-    font-size: 11px;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    white-space: nowrap;
-}
 .emg-btn {
-    background: #b91c1c;
+    background: #e11d48;
     color: white;
     border: none;
     border-radius: 8px;
     padding: 5px 12px;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 4px;
     animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(185, 28, 28, 0.5);
+    }
+    60% {
+        box-shadow: 0 0 0 6px rgba(185, 28, 28, 0);
+    }
+}
+
+.ptcard.crit {
+    border-color: #b91c1c;
+    animation: crit-flash 1s step-end infinite;
+}
+
+@keyframes crit-flash {
+    0%,
+    100% {
+        border-color: #b91c1c;
+    }
+    50% {
+        border-color: #f59e0b;
+    }
 }
 @keyframes pulse-red {
     0%,

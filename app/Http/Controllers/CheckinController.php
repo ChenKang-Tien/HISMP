@@ -245,7 +245,7 @@ class CheckinController extends Controller
 
             // 班別
             $shift = $r->morning_noon_night;
-            $obj->morning_noon_night = ['早', '中', '晚'][$shift] ?? '—';
+            $obj->morning_noon_night = [0 => '早', 1 => '中', 2 => '晚'][$shift] ?? '—';
 
             // 床位與卡號
             $obj->bed_no = $r->machine_bed->bed->bed_no ?? '—';
@@ -451,7 +451,7 @@ class CheckinController extends Controller
             $obj->ap_count = $apCounts[$check->id] ?? 0;
 
             // 班別
-            $obj->morning_noon_night = ['早', '中', '晚'][$r->morning_noon_night] ?? '—';
+            $obj->morning_noon_night = [0 => '早', 1 => '中', 2 => '晚'][$r->morning_noon_night] ?? '—';
 
             // 床位與卡號
             $obj->bed_no = $r->machine_bed->bed->bed_no ?? '—';
